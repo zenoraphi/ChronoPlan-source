@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "162022726071",
+    "project_id": "chronoplan-last-project",
+    "storage_bucket": "chronoplan-last-project.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:162022726071:android:7924130ac1d11270f7f032",
+        "android_client_info": {
+          "package_name": "com.chronoplan"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBzeB7tXJNPxazbv9X9UhUe71nY0BybqU4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
