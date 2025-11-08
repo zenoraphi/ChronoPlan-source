@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chronoplan.R
+import com.chronoplan.di.AppViewModelFactory
 // --- IMPOR KOMPONEN DARI PACKAGE LAIN ---
 import com.chronoplan.ui.components.DashboardCard
 import com.chronoplan.ui.components.ScheduleItem
@@ -32,8 +33,8 @@ import com.chronoplan.ui.components.PieChartLegend
 
 @Composable
 fun HomeScreen(
-    modifier: Modifier = Modifier, // Modifier diterima dari NavHost di MainScreen
-    viewModel: HomeViewModel = viewModel()
+    modifier: Modifier = Modifier,
+    viewModel: HomeViewModel = viewModel(factory = AppViewModelFactory())
 ) {
     // Ambil state dari ViewModel
     val uiState by viewModel.uiState.collectAsState()

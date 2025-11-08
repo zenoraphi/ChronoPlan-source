@@ -9,6 +9,7 @@ data class AgendaDto(
     val endAt: Long = 0L,
     val status: String = "pending", // pending|done|missed|canceled
     val isFavorite: Boolean = false,
+    val category: String = "",
     val reminderMinutesBefore: Int = 30,
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L

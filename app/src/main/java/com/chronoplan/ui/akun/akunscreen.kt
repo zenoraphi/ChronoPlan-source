@@ -1,9 +1,9 @@
 package com.chronoplan.ui.akun
 
-// --- IMPORTS ---
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -21,6 +21,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chronoplan.R
 import com.chronoplan.di.AppViewModelFactory
@@ -32,16 +33,25 @@ fun AkunScreen(
     modifier: Modifier = Modifier,
     onLogoutSuccess: () -> Unit = {}
 ) {
-    // PASTIKAN kita pakai factory agar ViewModel dibuat dengan dependency
     val viewModel: AkunViewModel = viewModel(factory = AppViewModelFactory())
     val uiState by viewModel.uiState.collectAsState()
 
-    // logout callback
+    // Edit Name Dialog
+    if (uiState.showEditNameDialog) {
+        EditNameDialog(
+            currentName = uiState.username,
+            onDismiss = { viewModel.hideEditNameDialog() },
+            onSave = { newName ->
+                viewModel.updateUsername(newName)
+                viewModel.hideEditNameDialog()
+            }
+        )
+    }
+
     LaunchedEffect(uiState.isLoggedOut) {
         if (uiState.isLoggedOut) onLogoutSuccess()
     }
 
-    // WARNA
     val colorBlueSoft = Color(0xFFD9EAFD)
     val colorGraySoft = Color(0xFF6A786A)
     val colorRedMaroon = Color(0xFF8B0000)
@@ -78,16 +88,23 @@ fun AkunScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         AuraAnimatedAvatar()
-                        Icon(
-                            imageVector = Icons.Filled.Person,
-                            contentDescription = "Profil User",
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(Color.White)
-                                .padding(8.dp),
-                            tint = Color.Gray
-                        )
+
+                        // Avatar dengan overlay loading
+                        Box(contentAlignment = Alignment.Center) {
+                            AvatarPicker(
+                                currentAvatarUrl = uiState.avatarUrl,
+                                onAvatarSelected = { uri ->
+                                    viewModel.uploadAvatar(uri)
+                                }
+                            )
+
+                            if (uiState.isUploadingAvatar) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(40.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(24.dp))
@@ -104,13 +121,15 @@ fun AkunScreen(
                     ProfileInfoCard(
                         username = uiState.username,
                         level = uiState.level,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { viewModel.showEditNameDialog() },
                         colorBlueSoft = colorBlueSoft,
                         colorGraySoft = colorGraySoft
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Button(
-                        onClick = { /* TODO: Edit Profil */ },
+                        onClick = { viewModel.showEditNameDialog() },
                         shape = RoundedCornerShape(15.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = colorBlueSoft),
                         modifier = Modifier
@@ -128,6 +147,8 @@ fun AkunScreen(
                 Spacer(modifier = Modifier.height(32.dp))
             }
 
+            // Update bagian Achievement di AkunScreen
+
             item {
                 Text(
                     text = "Achievement",
@@ -138,19 +159,35 @@ fun AkunScreen(
                         .padding(horizontal = 24.dp)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp)
-                        .height(160.dp),
+                        .heightIn(min = 160.dp, max = 300.dp),
                     colors = CardDefaults.cardColors(containerColor = colorBlueSoft),
                     shape = RoundedCornerShape(20.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                 ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        AchievementGridPlaceholder()
-                    }
+                    AchievementGrid(
+                        achievements = uiState.achievements,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+// Tambahkan Stats Card sebelum Achievement
+            item {
+                StatsCard(
+                    totalAgendas = uiState.stats.totalAgendas,
+                    completedAgendas = uiState.stats.completedAgendas,
+                    totalNotes = uiState.stats.totalNotes,
+                    currentStreak = uiState.stats.currentStreak,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                )
                 Spacer(modifier = Modifier.height(32.dp))
             }
 
@@ -212,6 +249,64 @@ fun AkunScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun EditNameDialog(
+    currentName: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var name by remember { mutableStateOf(currentName) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    text = "Edit Nama",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nama") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Batal")
+                    }
+
+                    Button(
+                        onClick = { onSave(name) },
+                        modifier = Modifier.weight(1f),
+                        enabled = name.isNotBlank()
+                    ) {
+                        Text("Simpan")
+                    }
+                }
             }
         }
     }

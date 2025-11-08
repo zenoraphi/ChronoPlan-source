@@ -1,7 +1,6 @@
 package com.chronoplan.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -18,24 +17,38 @@ object AppDestinations {
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+
     val navigateToMainSafe: () -> Unit = {
-        navController.navigate("main") {
-            popUpTo("signin") { inclusive = true }
+        navController.navigate(AppDestinations.MAIN_ROUTE) {
+            popUpTo(AppDestinations.SIGN_IN) { inclusive = true }
         }
     }
 
-    NavHost(navController = navController, startDestination = "signin") {
-        composable("signin") {
+    NavHost(navController = navController, startDestination = AppDestinations.SIGN_IN) {
+        composable(AppDestinations.SIGN_IN) {
             SignInScreen(
-                onNavigateToSignUp = { navController.navigate("signup") },
+                onNavigateToSignUp = { navController.navigate(AppDestinations.SIGN_UP) },
                 onNavigateToHome = navigateToMainSafe
             )
         }
-        composable("main") {
-            MainScreen(onLogoutSuccess = {
-                navController.navigate("signin") { popUpTo("main") { inclusive = true } }
-            })
+
+        composable(AppDestinations.SIGN_UP) {
+            SignUpScreen(
+                onNavigateToSignIn = {
+                    navController.popBackStack()
+                },
+                onNavigateToHome = navigateToMainSafe
+            )
         }
-        // signup...
+
+        composable(AppDestinations.MAIN_ROUTE) {
+            MainScreen(
+                onLogoutSuccess = {
+                    navController.navigate(AppDestinations.SIGN_IN) {
+                        popUpTo(AppDestinations.MAIN_ROUTE) { inclusive = true }
+                    }
+                }
+            )
+        }
     }
 }

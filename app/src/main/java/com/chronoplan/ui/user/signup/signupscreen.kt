@@ -30,6 +30,13 @@ fun SignUpScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
+    // Auto-login check
+    LaunchedEffect(Unit) {
+        viewModel.checkAutoLogin {
+            onNavigateToHome()
+        }
+    }
+
     AuthScreenLayout(modifier = modifier) {
         Column(
             modifier = Modifier
@@ -39,11 +46,13 @@ fun SignUpScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(40.dp))
+
             Image(
                 painter = painterResource(id = R.drawable.ic_chronoplan_logo),
                 contentDescription = "ChronoPlan Logo",
                 modifier = Modifier.size(120.dp)
             )
+
             Text(
                 text = "CHRONOPLAN",
                 fontSize = 32.sp,
@@ -76,7 +85,8 @@ fun SignUpScreen(
                         onValueChange = viewModel::onDisplayNameChange,
                         label = { Text("Display Name") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        enabled = !uiState.isLoading
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -86,7 +96,8 @@ fun SignUpScreen(
                         onValueChange = viewModel::onEmailChange,
                         label = { Text("Email") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        enabled = !uiState.isLoading
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -97,7 +108,8 @@ fun SignUpScreen(
                         label = { Text("Password") },
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true
+                        singleLine = true,
+                        enabled = !uiState.isLoading
                     )
 
                     if (uiState.errorMessage != null) {
@@ -123,7 +135,8 @@ fun SignUpScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !uiState.isLoading
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
@@ -144,7 +157,8 @@ fun SignUpScreen(
                             onClick = onNavigateToSignIn,
                             colors = ButtonDefaults.textButtonColors(
                                 contentColor = MaterialTheme.colorScheme.primary
-                            )
+                            ),
+                            enabled = !uiState.isLoading
                         ) {
                             Text(text = "Sign in", fontWeight = FontWeight.Bold)
                         }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -28,7 +29,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chronoplan.R
 import com.chronoplan.di.AppViewModelFactory
 import com.chronoplan.data.model.NoteDto
-
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +39,43 @@ fun NoteScreen(
     viewModel: NoteViewModel = viewModel(factory = AppViewModelFactory())
 ) {
     val uiState by viewModel.state.collectAsState()
+
+    // Show Add/Edit Dialog
+    if (uiState.showAddDialog) {
+        AddEditNoteDialog(
+            existingNote = if (uiState.isEditMode) uiState.selectedNote else null,
+            onDismiss = { viewModel.hideAddDialog() },
+            onSave = { note ->
+                if (uiState.isEditMode) {
+                    viewModel.updateNote(note)
+                } else {
+                    viewModel.addNote(note)
+                }
+            },
+            onUploadImage = { uri ->
+                viewModel.uploadAttachment(uri)
+            }
+        )
+    }
+
+    // Show Detail Dialog
+    if (uiState.showDetailDialog && uiState.selectedNote != null) {
+        NoteDetailDialog(
+            note = uiState.selectedNote!!,
+            onDismiss = { viewModel.hideDetailDialog() },
+            onEdit = {
+                viewModel.hideDetailDialog()
+                viewModel.showEditDialog(uiState.selectedNote!!)
+            },
+            onDelete = {
+                viewModel.deleteNote(uiState.selectedNote!!.id)
+                viewModel.hideDetailDialog()
+            },
+            onToggleFavorite = {
+                viewModel.toggleFavorite(uiState.selectedNote!!.id)
+            }
+        )
+    }
 
     Box(
         modifier = modifier
@@ -85,32 +124,42 @@ fun NoteScreen(
             }
 
             // Grid catatan
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(uiState.notes, key = { note -> note.id }) { note ->
-                    NoteCardItem(note = note)
+            if (uiState.notes.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 80.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Belum ada catatan.\nKlik tombol + untuk membuat.",
+                        color = Color.Gray,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(uiState.notes, key = { note -> note.id }) { note ->
+                        NoteCardItem(
+                            note = note,
+                            onClick = { viewModel.showDetailDialog(note) }
+                        )
+                    }
                 }
             }
         }
 
         // FAB tambah catatan
         FloatingActionButton(
-            onClick = {
-                viewModel.addNote(
-                    NoteDto(
-                        title = "Catatan Baru",
-                        content = "Isi catatan di sini",
-                        contentPreview = "Isi catatan di sini..."
-                    )
-                )
-            },
+            onClick = { viewModel.showAddDialog() },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(16.dp),
@@ -122,63 +171,112 @@ fun NoteScreen(
 }
 
 @Composable
-fun NoteCardItem(note: NoteDto) {
+fun NoteCardItem(note: NoteDto, onClick: () -> Unit) {
+    val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
+
     Card(
         modifier = Modifier
             .width(179.dp)
             .height(166.dp)
-            .clickable { /* TODO: Buka detail note */ },
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(15.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            Text(
-                text = note.title,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                lineHeight = 16.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = Color.Black,
+            Column(
                 modifier = Modifier
-                    .padding(top = 11.dp, start = 6.dp, end = 6.dp)
-                    .fillMaxWidth()
-            )
-
-            Text(
-                text = note.contentPreview,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 10.sp,
-                lineHeight = 12.sp,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                color = Color(0xFF6A786A),
-                modifier = Modifier
-                    .padding(top = 45.dp, start = 6.dp, end = 6.dp)
-                    .fillMaxWidth()
-            )
-
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 11.dp, bottom = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .padding(12.dp)
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_calendar),
-                    contentDescription = "Tanggal",
-                    modifier = Modifier.size(14.dp),
-                    tint = Color(0xFF6A786A)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
+                // Title + Favorite Icon
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = note.title,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        lineHeight = 16.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        color = Color.Black,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    if (note.isFavorite) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = "Favorit",
+                            tint = Color(0xFFFFC107),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Content Preview
                 Text(
-                    text = note.updatedAt.toString(),
+                    text = note.contentPreview,
                     fontWeight = FontWeight.Normal,
-                    fontSize = 8.sp,
-                    lineHeight = 9.sp,
+                    fontSize = 12.sp,
+                    lineHeight = 14.sp,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
                     color = Color(0xFF6A786A)
                 )
+
+                Spacer(modifier = Modifier.weight(1f))
+                // Labels (jika ada)
+                if (note.labels.isNotEmpty()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    ) {
+                        note.labels.take(2).forEach { label ->
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 8.sp,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                        if (note.labels.size > 2) {
+                            Text(
+                                text = "+${note.labels.size - 2}",
+                                fontSize = 8.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                }
+
+                // Date
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_calendar),
+                        contentDescription = "Tanggal",
+                        modifier = Modifier.size(12.dp),
+                        tint = Color(0xFF6A786A)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = dateFormat.format(Date(note.updatedAt)),
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 10.sp,
+                        color = Color(0xFF6A786A)
+                    )
+                }
             }
         }
     }

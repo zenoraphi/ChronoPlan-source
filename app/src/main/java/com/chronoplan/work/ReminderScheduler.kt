@@ -8,20 +8,17 @@ import java.util.concurrent.TimeUnit
 
 object ReminderScheduler {
 
-    /**
-     * Menjadwalkan notifikasi pengingat agenda
-     * @param context Context aplikasi
-     * @param title Judul agenda
-     * @param desc Deskripsi agenda
-     * @param delayInMinutes Jeda waktu sebelum reminder dikirim
-     */
     fun scheduleReminder(
         context: Context,
+        agendaId: String,
         title: String,
         desc: String,
         delayInMinutes: Long
     ) {
+        if (delayInMinutes <= 0) return
+
         val inputData = Data.Builder()
+            .putString("agendaId", agendaId)
             .putString("title", title)
             .putString("desc", desc)
             .build()
@@ -29,8 +26,13 @@ object ReminderScheduler {
         val request = OneTimeWorkRequestBuilder<ReminderWorker>()
             .setInputData(inputData)
             .setInitialDelay(delayInMinutes, TimeUnit.MINUTES)
+            .addTag("agenda_reminder_$agendaId")
             .build()
 
         WorkManager.getInstance(context).enqueue(request)
+    }
+
+    fun cancelReminder(context: Context, agendaId: String) {
+        WorkManager.getInstance(context).cancelAllWorkByTag("agenda_reminder_$agendaId")
     }
 }

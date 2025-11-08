@@ -12,29 +12,34 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chronoplan.R
 import com.chronoplan.di.AppViewModelFactory
-import com.chronoplan.domain.model.Agenda
+import com.chronoplan.data.model.AgendaDto
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
-import com.chronoplan.data.model.AgendaDto
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,7 +47,25 @@ fun AgendaScreen(
     modifier: Modifier = Modifier,
     viewModel: AgendaViewModel = viewModel(factory = AppViewModelFactory())
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.state.collectAsState()
+
+    if (uiState.showAddDialog) {
+        AddAgendaDialog(
+            onDismiss = { viewModel.hideAddDialog() },
+            onSave = { agenda ->
+                viewModel.addAgenda(agenda, context)
+            }
+        )
+    }
+
+    if (uiState.showHistoryDialog) {
+        AgendaHistoryDialog(
+            agendas = uiState.agendas,
+            onDismiss = { viewModel.hideHistoryDialog() },
+            onDelete = { agendaId -> viewModel.deleteAgenda(agendaId) }
+        )
+    }
 
     Column(
         modifier = modifier
@@ -108,10 +131,10 @@ fun AgendaScreen(
                     )
                     DayIndicatorStrip(
                         DayOfWeek.of(
-                            if (uiState.selectedDayOfWeek in 1..7) uiState.selectedDayOfWeek else LocalDate.now().dayOfWeek.value
+                            if (uiState.selectedDayOfWeek in 1..7) uiState.selectedDayOfWeek
+                            else LocalDate.now().dayOfWeek.value
                         )
                     )
-
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -124,13 +147,19 @@ fun AgendaScreen(
                     if (uiState.jadwalHariIni.isEmpty()) {
                         item {
                             Text(
-                                text = "Tidak ada jadwal untuk tanggal ini.",
+                                text = "Belum ada agenda untuk hari ini.\nKlik 'Jadwalkan Tugas' untuk menambah.",
                                 color = Color.Gray,
-                                modifier = Modifier.padding(top = 16.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 16.dp),
+                                textAlign = TextAlign.Center
                             )
                         }
                     } else {
-                        items(uiState.jadwalHariIni, key = { it.id }) { agenda ->
+                        items(
+                            items = uiState.jadwalHariIni,
+                            key = { agenda -> agenda.id }
+                        ) { agenda ->
                             AgendaListItem(
                                 agenda = agenda,
                                 onToggleDone = { viewModel.toggleTaskDone(agenda.id) }
@@ -150,7 +179,7 @@ fun AgendaScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
-                onClick = { /* TODO: fitur waktu */ },
+                onClick = { viewModel.showHistoryDialog() },
                 modifier = Modifier
                     .size(56.dp)
                     .background(Color.White, CircleShape)
@@ -158,7 +187,7 @@ fun AgendaScreen(
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_time),
-                    contentDescription = "Waktu",
+                    contentDescription = "History",
                     tint = LocalContentColor.current.copy(alpha = 0.7f)
                 )
             }
@@ -166,7 +195,7 @@ fun AgendaScreen(
             Spacer(modifier = Modifier.width(16.dp))
 
             Button(
-                onClick = { /* TODO: tambah agenda */ },
+                onClick = { viewModel.showAddDialog() },
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .height(56.dp)
@@ -239,8 +268,8 @@ private fun AgendaListItem(agenda: AgendaDto, onToggleDone: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(text = agenda.date, fontSize = 12.sp, color = Color.Gray)
                     Text(text = agenda.title, fontWeight = FontWeight.Medium, maxLines = 1)
+                    Text(text = agenda.date, fontSize = 12.sp, color = Color.Gray)
                 }
             }
             Icon(
@@ -251,6 +280,140 @@ private fun AgendaListItem(agenda: AgendaDto, onToggleDone: () -> Unit) {
                 modifier = Modifier
                     .size(24.dp)
                     .clickable(onClick = onToggleDone)
+            )
+        }
+    }
+}
+
+@Composable
+fun AgendaHistoryDialog(
+    agendas: List<AgendaDto>,
+    onDismiss: () -> Unit,
+    onDelete: (String) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 500.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    text = "Semua Agenda",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (agendas.isEmpty()) {
+                    Text(
+                        text = "Belum ada agenda",
+                        color = Color.Gray,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        textAlign = TextAlign.Center
+                    )
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(agendas.sortedByDescending { it.createdAt }, key = { it.id }) { agenda ->
+                            AgendaHistoryItem(
+                                agenda = agenda,
+                                onDelete = { onDelete(agenda.id) }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Tutup")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AgendaHistoryItem(
+    agenda: AgendaDto,
+    onDelete: () -> Unit
+) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { showDeleteConfirm = !showDeleteConfirm },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = when (agenda.status) {
+                "done" -> Color(0xFFE8F5E9)
+                "missed" -> Color(0xFFFFEBEE)
+                else -> Color(0xFFFFF9C4)
+            }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = agenda.title,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+
+                if (showDeleteConfirm) {
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "Hapus",
+                            tint = Color.Red
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = agenda.description,
+                fontSize = 12.sp,
+                color = Color.Gray,
+                maxLines = 2
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "${agenda.date} • ${
+                    when (agenda.status) {
+                        "done" -> "Selesai"
+                        "missed" -> "Terlewat"
+                        "pending" -> "Menunggu"
+                        else -> "Unknown"
+                    }
+                }",
+                fontSize = 10.sp,
+                color = Color.Gray
             )
         }
     }

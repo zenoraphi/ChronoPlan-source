@@ -1,5 +1,6 @@
 package com.chronoplan.ui.note
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chronoplan.data.model.NoteDto
@@ -9,13 +10,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/**
- * NoteViewModel - mengatur semua catatan user dari Firestore.
- */
 data class NoteUiState(
     val notes: List<NoteDto> = emptyList(),
+    val favoriteNotes: List<NoteDto> = emptyList(),
     val isLoading: Boolean = true,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val showAddDialog: Boolean = false,
+    val showDetailDialog: Boolean = false,
+    val selectedNote: NoteDto? = null,
+    val isEditMode: Boolean = false
 )
 
 class NoteViewModel(private val useCase: ChronoUseCase) : ViewModel() {
@@ -27,33 +30,75 @@ class NoteViewModel(private val useCase: ChronoUseCase) : ViewModel() {
         observeNotes()
     }
 
-    /** Observasi realtime dari Firestore */
     private fun observeNotes() {
         viewModelScope.launch {
             useCase.observeNotes().collect { list ->
-                _state.value = _state.value.copy(notes = list, isLoading = false)
+                _state.value = _state.value.copy(
+                    notes = list.sortedByDescending { it.updatedAt },
+                    favoriteNotes = list.filter { it.isFavorite },
+                    isLoading = false
+                )
             }
         }
     }
 
-    /** Tambah catatan baru */
     fun addNote(note: NoteDto) {
         viewModelScope.launch {
             useCase.addNote(note)
         }
     }
 
-    /** Update catatan */
     fun updateNote(note: NoteDto) {
         viewModelScope.launch {
             useCase.updateNote(note)
         }
     }
 
-    /** Hapus catatan */
     fun deleteNote(noteId: String) {
         viewModelScope.launch {
             useCase.deleteNote(noteId)
         }
+    }
+
+    fun toggleFavorite(noteId: String) {
+        viewModelScope.launch {
+            val note = _state.value.notes.find { it.id == noteId } ?: return@launch
+            val updated = note.copy(
+                isFavorite = !note.isFavorite,
+                updatedAt = System.currentTimeMillis()
+            )
+            useCase.updateNote(updated)
+        }
+    }
+
+    fun uploadAttachment(uri: Uri) {
+        viewModelScope.launch {
+            val result = useCase.uploadAttachment(uri)
+            if (result.isSuccess) {
+                // Handle uploaded URL
+                val url = result.getOrNull()
+                // You can add this to the note being edited
+            }
+        }
+    }
+
+    fun showAddDialog() {
+        _state.value = _state.value.copy(showAddDialog = true, isEditMode = false, selectedNote = null)
+    }
+
+    fun showEditDialog(note: NoteDto) {
+        _state.value = _state.value.copy(showAddDialog = true, isEditMode = true, selectedNote = note)
+    }
+
+    fun hideAddDialog() {
+        _state.value = _state.value.copy(showAddDialog = false, isEditMode = false, selectedNote = null)
+    }
+
+    fun showDetailDialog(note: NoteDto) {
+        _state.value = _state.value.copy(showDetailDialog = true, selectedNote = note)
+    }
+
+    fun hideDetailDialog() {
+        _state.value = _state.value.copy(showDetailDialog = false, selectedNote = null)
     }
 }

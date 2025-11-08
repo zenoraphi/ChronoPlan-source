@@ -38,8 +38,10 @@ class FirestoreChronoRepository(
             val uid = userResult.user?.uid ?: return Result.failure(Exception("UID null"))
 
             val profile = hashMapOf(
-                "displayName" to (displayName ?: ""),
+                "uid" to uid,
+                "displayName" to (displayName ?: "Guest"),
                 "email" to email,
+                "level" to "Newbie",
                 "createdAt" to System.currentTimeMillis()
             )
 
@@ -66,8 +68,22 @@ class FirestoreChronoRepository(
         return try {
             val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Belum login"))
             val snapshot = firestore.collection("users").document(uid).get().await()
-            val profile = snapshot.toObject(UserProfileDto::class.java)
-                ?: return Result.failure(Exception("Profil tidak ditemukan"))
+
+            if (!snapshot.exists()) {
+                return Result.failure(Exception("Profil tidak ditemukan"))
+            }
+
+            val profile = UserProfileDto(
+                uid = snapshot.getString("uid") ?: uid,
+                displayName = snapshot.getString("displayName") ?: "Guest",
+                email = snapshot.getString("email") ?: "",
+                avatarUrl = snapshot.getString("avatarUrl"),
+                birthDate = snapshot.getString("birthDate"),
+                gender = snapshot.getString("gender"),
+                level = snapshot.getString("level") ?: "Newbie",
+                createdAt = snapshot.getLong("createdAt") ?: 0L
+            )
+
             Result.success(profile)
         } catch (e: Exception) {
             Result.failure(e)
@@ -77,7 +93,20 @@ class FirestoreChronoRepository(
     override suspend fun updateProfile(profile: UserProfileDto): Result<Unit> {
         return try {
             val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Belum login"))
-            firestore.collection("users").document(uid).set(profile).await()
+
+            val profileMap = hashMapOf<String, Any>(
+                "uid" to profile.uid,
+                "displayName" to profile.displayName,
+                "email" to profile.email,
+                "level" to profile.level,
+                "createdAt" to profile.createdAt
+            )
+
+            profile.avatarUrl?.let { profileMap["avatarUrl"] = it }
+            profile.birthDate?.let { profileMap["birthDate"] = it }
+            profile.gender?.let { profileMap["gender"] = it }
+
+            firestore.collection("users").document(uid).set(profileMap).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -105,6 +134,7 @@ class FirestoreChronoRepository(
             close()
             return@callbackFlow
         }
+
         val listener = firestore.collection("users")
             .document(uid)
             .collection("agendas")
@@ -113,7 +143,11 @@ class FirestoreChronoRepository(
                     close(error)
                     return@addSnapshotListener
                 }
-                val agendas = value?.toObjects(AgendaDto::class.java) ?: emptyList()
+
+                val agendas = value?.documents?.mapNotNull { doc ->
+                    doc.toObject(AgendaDto::class.java)?.copy(id = doc.id)
+                } ?: emptyList()
+
                 trySend(agendas)
             }
         awaitClose { listener.remove() }
@@ -122,11 +156,26 @@ class FirestoreChronoRepository(
     override suspend fun addAgenda(agenda: AgendaDto): Result<String> {
         return try {
             val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Belum login"))
+
+            val agendaMap = hashMapOf<String, Any>(
+                "title" to agenda.title,
+                "description" to agenda.description,
+                "date" to agenda.date,
+                "startAt" to agenda.startAt,
+                "endAt" to agenda.endAt,
+                "status" to agenda.status,
+                "isFavorite" to agenda.isFavorite,
+                "reminderMinutesBefore" to agenda.reminderMinutesBefore,
+                "createdAt" to System.currentTimeMillis(),
+                "updatedAt" to System.currentTimeMillis()
+            )
+
             val docRef = firestore.collection("users")
                 .document(uid)
                 .collection("agendas")
-                .add(agenda)
+                .add(agendaMap)
                 .await()
+
             Result.success(docRef.id)
         } catch (e: Exception) {
             Result.failure(e)
@@ -136,12 +185,27 @@ class FirestoreChronoRepository(
     override suspend fun updateAgenda(agenda: AgendaDto): Result<Unit> {
         return try {
             val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Belum login"))
+
+            val agendaMap = hashMapOf<String, Any>(
+                "title" to agenda.title,
+                "description" to agenda.description,
+                "date" to agenda.date,
+                "startAt" to agenda.startAt,
+                "endAt" to agenda.endAt,
+                "status" to agenda.status,
+                "isFavorite" to agenda.isFavorite,
+                "reminderMinutesBefore" to agenda.reminderMinutesBefore,
+                "createdAt" to agenda.createdAt,
+                "updatedAt" to System.currentTimeMillis()
+            )
+
             firestore.collection("users")
                 .document(uid)
                 .collection("agendas")
                 .document(agenda.id)
-                .set(agenda)
+                .set(agendaMap)
                 .await()
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -171,6 +235,7 @@ class FirestoreChronoRepository(
             close()
             return@callbackFlow
         }
+
         val listener = firestore.collection("users")
             .document(uid)
             .collection("notes")
@@ -179,7 +244,11 @@ class FirestoreChronoRepository(
                     close(error)
                     return@addSnapshotListener
                 }
-                val notes = value?.toObjects(NoteDto::class.java) ?: emptyList()
+
+                val notes = value?.documents?.mapNotNull { doc ->
+                    doc.toObject(NoteDto::class.java)?.copy(id = doc.id)
+                } ?: emptyList()
+
                 trySend(notes)
             }
         awaitClose { listener.remove() }
@@ -188,11 +257,24 @@ class FirestoreChronoRepository(
     override suspend fun addNote(note: NoteDto): Result<String> {
         return try {
             val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Belum login"))
+
+            val noteMap = hashMapOf<String, Any>(
+                "title" to note.title,
+                "contentPreview" to note.contentPreview,
+                "content" to note.content,
+                "labels" to note.labels,
+                "attachments" to note.attachments,
+                "isFavorite" to note.isFavorite,
+                "createdAt" to System.currentTimeMillis(),
+                "updatedAt" to System.currentTimeMillis()
+            )
+
             val docRef = firestore.collection("users")
                 .document(uid)
                 .collection("notes")
-                .add(note)
+                .add(noteMap)
                 .await()
+
             Result.success(docRef.id)
         } catch (e: Exception) {
             Result.failure(e)
@@ -202,12 +284,25 @@ class FirestoreChronoRepository(
     override suspend fun updateNote(note: NoteDto): Result<Unit> {
         return try {
             val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Belum login"))
+
+            val noteMap = hashMapOf<String, Any>(
+                "title" to note.title,
+                "contentPreview" to note.contentPreview,
+                "content" to note.content,
+                "labels" to note.labels,
+                "attachments" to note.attachments,
+                "isFavorite" to note.isFavorite,
+                "createdAt" to note.createdAt,
+                "updatedAt" to System.currentTimeMillis()
+            )
+
             firestore.collection("users")
                 .document(uid)
                 .collection("notes")
                 .document(note.id)
-                .set(note)
+                .set(noteMap)
                 .await()
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
