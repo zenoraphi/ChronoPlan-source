@@ -15,10 +15,10 @@ data class NoteUiState(
     val favoriteNotes: List<NoteDto> = emptyList(),
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
-    val showAddDialog: Boolean = false,
     val showDetailDialog: Boolean = false,
     val selectedNote: NoteDto? = null,
-    val isEditMode: Boolean = false
+    val navigateToEditor: Boolean = false,
+    val noteToEdit: NoteDto? = null
 )
 
 class NoteViewModel(private val useCase: ChronoUseCase) : ViewModel() {

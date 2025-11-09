@@ -104,11 +104,13 @@ class AkunViewModel(
                         val updateResult = useCase.updateProfile(updatedProfile)
 
                         if (updateResult.isSuccess) {
+                            // ✅ FIXED: Update state langsung dan reload profile
                             _uiState.value = _uiState.value.copy(
                                 avatarUrl = avatarUrl,
                                 isUploadingAvatar = false
                             )
-                            // Force reload profile
+                            // Force reload profile untuk memastikan sinkron
+                            kotlinx.coroutines.delay(500)
                             loadProfile()
                         } else {
                             _uiState.value = _uiState.value.copy(isUploadingAvatar = false)

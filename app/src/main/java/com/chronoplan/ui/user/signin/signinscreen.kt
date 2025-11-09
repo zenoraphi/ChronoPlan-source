@@ -1,5 +1,6 @@
 package com.chronoplan.ui.user.signin
 
+import SignInViewModel
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,12 +29,10 @@ fun SignInScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    // Auto-login check
     LaunchedEffect(Unit) {
         viewModel.checkAutoLogin(onNavigateToHome)
     }
 
-    // Navigate saat berhasil login
     LaunchedEffect(uiState.isSignedIn) {
         if (uiState.isSignedIn) {
             onNavigateToHome()
@@ -59,6 +58,7 @@ fun SignInScreen(
                 text = "CHRONOPLAN",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
+                color = Color(0xFF000000),
                 modifier = Modifier.padding(top = 8.dp)
             )
 
@@ -77,7 +77,8 @@ fun SignInScreen(
                     Text(
                         text = "SIGN IN",
                         fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF000000)
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -85,10 +86,20 @@ fun SignInScreen(
                     OutlinedTextField(
                         value = uiState.email,
                         onValueChange = viewModel::onEmailChange,
-                        label = { Text("Email") },
+                        label = { Text("Email", color = Color(0xFF757575)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        enabled = !uiState.isLoading
+                        enabled = !uiState.isLoading,
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedTextColor = Color(0xFF000000),
+                            unfocusedTextColor = Color(0xFF000000),
+                            disabledTextColor = Color(0xFF000000),
+                            cursorColor = Color(0xFF1976D2),
+                            focusedBorderColor = Color(0xFF1976D2),
+                            unfocusedBorderColor = Color(0xFF9E9E9E),
+                            focusedLabelColor = Color(0xFF1976D2),
+                            unfocusedLabelColor = Color(0xFF757575)
+                        )
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -96,17 +107,27 @@ fun SignInScreen(
                     OutlinedTextField(
                         value = uiState.password,
                         onValueChange = viewModel::onPasswordChange,
-                        label = { Text("Password") },
+                        label = { Text("Password", color = Color(0xFF757575)) },
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),
                         singleLine = true,
-                        enabled = !uiState.isLoading
+                        enabled = !uiState.isLoading,
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedTextColor = Color(0xFF000000),
+                            unfocusedTextColor = Color(0xFF000000),
+                            disabledTextColor = Color(0xFF000000),
+                            cursorColor = Color(0xFF1976D2),
+                            focusedBorderColor = Color(0xFF1976D2),
+                            unfocusedBorderColor = Color(0xFF9E9E9E),
+                            focusedLabelColor = Color(0xFF1976D2),
+                            unfocusedLabelColor = Color(0xFF757575)
+                        )
                     )
 
                     if (uiState.errorMessage != null) {
                         Text(
                             text = uiState.errorMessage ?: "",
-                            color = Color.Red,
+                            color = Color(0xFFC62828),
                             fontSize = 12.sp,
                             modifier = Modifier.padding(top = 6.dp)
                         )
@@ -120,7 +141,11 @@ fun SignInScreen(
                             .fillMaxWidth()
                             .height(50.dp),
                         shape = RoundedCornerShape(12.dp),
-                        enabled = !uiState.isLoading
+                        enabled = !uiState.isLoading,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF1976D2),
+                            contentColor = Color.White
+                        )
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
@@ -129,14 +154,14 @@ fun SignInScreen(
                                 strokeWidth = 3.dp
                             )
                         } else {
-                            Text(text = "Sign in", fontSize = 16.sp)
+                            Text(text = "Sign in", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(text = "Don't have an account?")
+                        Text(text = "Don't have an account?", color = Color(0xFF424242))
                         TextButton(
                             onClick = onNavigateToSignUp,
                             enabled = !uiState.isLoading
@@ -144,7 +169,7 @@ fun SignInScreen(
                             Text(
                                 text = "Sign up",
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = Color(0xFF1976D2)
                             )
                         }
                     }

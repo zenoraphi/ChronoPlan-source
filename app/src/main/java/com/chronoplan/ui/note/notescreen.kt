@@ -41,13 +41,21 @@ import java.util.*
 @Composable
 fun NoteScreen(
     modifier: Modifier = Modifier,
+    onNavigateToEditor: (NoteDto?) -> Unit = {},
     viewModel: NoteViewModel = viewModel(factory = AppViewModelFactory())
 ) {
     val uiState by viewModel.state.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var showSearchBar by remember { mutableStateOf(false) }
 
-    // Filter notes berdasarkan search
+    // ✅ Navigation handler
+    LaunchedEffect(uiState.navigateToEditor) {
+        if (uiState.navigateToEditor) {
+            onNavigateToEditor(uiState.noteToEdit)
+            viewModel.clearNavigation()
+        }
+    }
+
     val filteredNotes = remember(uiState.notes, searchQuery) {
         if (searchQuery.isBlank()) {
             uiState.notes
@@ -60,32 +68,13 @@ fun NoteScreen(
         }
     }
 
-    // Show Add/Edit Dialog
-    if (uiState.showAddDialog) {
-        AddEditNoteDialog(
-            existingNote = if (uiState.isEditMode) uiState.selectedNote else null,
-            onDismiss = { viewModel.hideAddDialog() },
-            onSave = { note ->
-                if (uiState.isEditMode) {
-                    viewModel.updateNote(note)
-                } else {
-                    viewModel.addNote(note)
-                }
-            },
-            onUploadImage = { uri ->
-                viewModel.uploadAttachment(uri)
-            }
-        )
-    }
-
-    // Show Detail Dialog
     if (uiState.showDetailDialog && uiState.selectedNote != null) {
         NoteDetailDialog(
             note = uiState.selectedNote!!,
             onDismiss = { viewModel.hideDetailDialog() },
             onEdit = {
                 viewModel.hideDetailDialog()
-                viewModel.showEditDialog(uiState.selectedNote!!)
+                viewModel.navigateToEditor(uiState.selectedNote)
             },
             onDelete = {
                 viewModel.deleteNote(uiState.selectedNote!!.id)

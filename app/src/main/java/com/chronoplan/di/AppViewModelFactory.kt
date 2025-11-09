@@ -1,5 +1,6 @@
 package com.chronoplan.di
 
+import SignInViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.chronoplan.data.repository.FirestoreChronoRepository
@@ -8,7 +9,6 @@ import com.chronoplan.domain.usecase.ChronoUseCase
 import com.chronoplan.ui.agenda.AgendaViewModel
 import com.chronoplan.ui.akun.AkunViewModel
 import com.chronoplan.ui.note.NoteViewModel
-import com.chronoplan.ui.user.signin.SignInViewModel
 import com.chronoplan.ui.user.signup.SignUpViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore

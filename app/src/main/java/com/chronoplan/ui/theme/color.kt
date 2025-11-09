@@ -2,12 +2,26 @@ package com.chronoplan.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Palet Chronoplan dengan opacity penuh
-val BackgroundLight = Color(0xFFF0F5FF) // Background biru muda
-val BackgroundWhite = Color(0xFFFFFFFF) // Card Background putih
+// ✅ FIXED: Kontras tinggi untuk semua teks
+val BackgroundLight = Color(0xFFF0F5FF)
+val BackgroundWhite = Color(0xFFFFFFFF)
 
-// Warna text dengan opacity penuh (100%)
-val TextDark = Color(0xFF1B1B1B) // Hitam untuk text utama
-val TextGray = Color(0xFF6A786A) // Gray untuk secondary text
-val PrimaryBlue = Color(0xFF4682B4) // Steel Blue
-val ButtonColorLight = Color(0xFFCDE4F5) // Biru muda tombol
+// Text dengan kontras tinggi
+val TextDark = Color(0xFF000000) // Pure black
+val TextGray = Color(0xFF424242) // Dark gray (kontras tinggi)
+val TextMedium = Color(0xFF757575) // Medium gray
+val TextLight = Color(0xFF9E9E9E) // Light gray untuk placeholder
+
+// Primary colors
+val PrimaryBlue = Color(0xFF1976D2) // Darker blue (lebih kontras)
+val PrimaryBlueDark = Color(0xFF0D47A1)
+val ButtonColorLight = Color(0xFFBBDEFB)
+
+// Status colors
+val SuccessGreen = Color(0xFF2E7D32)
+val WarningYellow = Color(0xFFF57F17)
+val ErrorRed = Color(0xFFC62828)
+
+// Accent
+val AccentOrange = Color(0xFFFF6F00)
+val AccentPurple = Color(0xFF6A1B9A)

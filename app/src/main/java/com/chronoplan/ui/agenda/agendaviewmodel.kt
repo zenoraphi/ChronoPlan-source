@@ -37,13 +37,24 @@ class AgendaViewModel(private val useCase: ChronoUseCase) : ViewModel() {
     private fun observeAgendas() {
         viewModelScope.launch {
             useCase.observeAgendas().collect { list ->
+                // ✅ FIXED: Gunakan Calendar untuk konsistensi
+                val calendar = Calendar.getInstance()
+                calendar.timeInMillis = _state.value.selectedDate
+
                 val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                    .format(Date(_state.value.selectedDate))
+                    .format(calendar.time)
+
+                val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+
+                // Format tanggal Indonesia
+                val dateFormatIndo = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale("id", "ID"))
+                val formattedDate = dateFormatIndo.format(calendar.time)
 
                 _state.value = _state.value.copy(
                     agendas = list,
                     jadwalHariIni = list.filter { it.date == today },
-                    selectedDateFormatted = today,
+                    selectedDateFormatted = formattedDate,
+                    selectedDayOfWeek = dayOfWeek,
                     isLoading = false
                 )
             }
@@ -61,16 +72,12 @@ class AgendaViewModel(private val useCase: ChronoUseCase) : ViewModel() {
         }
     }
 
-    // Tambahkan di dalam class AgendaViewModel
-
     fun addAgenda(newAgenda: AgendaDto, context: Context) {
         viewModelScope.launch {
             val result = useCase.addAgenda(newAgenda)
 
             if (result.isSuccess && newAgenda.reminderMinutesBefore > 0) {
                 val agendaId = result.getOrNull() ?: return@launch
-
-                // Hitung delay
                 val reminderTime = newAgenda.startAt - (newAgenda.reminderMinutesBefore * 60 * 1000)
                 val now = System.currentTimeMillis()
                 val delayMinutes = (reminderTime - now) / (60 * 1000)

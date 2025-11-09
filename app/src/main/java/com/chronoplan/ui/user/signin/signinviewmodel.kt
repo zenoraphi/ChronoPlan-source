@@ -1,5 +1,3 @@
-package com.chronoplan.ui.user.signin
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chronoplan.domain.usecase.ChronoUseCase
@@ -23,31 +21,57 @@ class SignInViewModel(private val useCase: ChronoUseCase) : ViewModel() {
     val uiState = _uiState.asStateFlow()
 
     fun onEmailChange(email: String) {
-        _uiState.update { it.copy(email = email) }
+        _uiState.update { it.copy(email = email, errorMessage = null) }
     }
 
     fun onPasswordChange(password: String) {
-        _uiState.update { it.copy(password = password) }
+        _uiState.update { it.copy(password = password, errorMessage = null) }
     }
 
     fun signIn() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
             val res = useCase.signInWithEmail(_uiState.value.email, _uiState.value.password)
+
             if (res.isSuccess) {
-                _uiState.update { it.copy(isLoading = false, isSignedIn = true) }
+                // ✅ Cek verifikasi email
+                val user = FirebaseAuth.getInstance().currentUser
+                if (user != null && user.isEmailVerified) {
+                    _uiState.update { it.copy(isLoading = false, isSignedIn = true) }
+                } else {
+                    // ✅ Belum verifikasi
+                    FirebaseAuth.getInstance().signOut()
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Email belum diverifikasi. Silakan cek inbox email Anda."
+                        )
+                    }
+                }
             } else {
+                val errorMsg = res.exceptionOrNull()?.message ?: "Login gagal"
                 _uiState.update {
-                    it.copy(isLoading = false, errorMessage = res.exceptionOrNull()?.message)
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = when {
+                            errorMsg.contains("no user record", ignoreCase = true) ||
+                                    errorMsg.contains("invalid-credential", ignoreCase = true) ->
+                                "Email atau password salah"
+                            errorMsg.contains("network", ignoreCase = true) ->
+                                "Tidak ada koneksi internet"
+                            else -> errorMsg
+                        }
+                    )
                 }
             }
         }
     }
+
     fun checkAutoLogin(onAlreadyLoggedIn: () -> Unit) {
         val user = FirebaseAuth.getInstance().currentUser
-        if (user != null) {
+        if (user != null && user.isEmailVerified) {
             onAlreadyLoggedIn()
         }
     }
-
 }
