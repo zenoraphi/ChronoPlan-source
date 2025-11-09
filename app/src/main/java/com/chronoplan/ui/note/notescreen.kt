@@ -1,5 +1,10 @@
 package com.chronoplan.ui.note
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,12 +15,11 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chronoplan.R
 import com.chronoplan.di.AppViewModelFactory
 import com.chronoplan.data.model.NoteDto
+import com.chronoplan.ui.components.ScaleInAnimation
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -39,6 +44,21 @@ fun NoteScreen(
     viewModel: NoteViewModel = viewModel(factory = AppViewModelFactory())
 ) {
     val uiState by viewModel.state.collectAsState()
+    var searchQuery by remember { mutableStateOf("") }
+    var showSearchBar by remember { mutableStateOf(false) }
+
+    // Filter notes berdasarkan search
+    val filteredNotes = remember(uiState.notes, searchQuery) {
+        if (searchQuery.isBlank()) {
+            uiState.notes
+        } else {
+            uiState.notes.filter {
+                it.title.contains(searchQuery, ignoreCase = true) ||
+                        it.content.contains(searchQuery, ignoreCase = true) ||
+                        it.labels.any { label -> label.contains(searchQuery, ignoreCase = true) }
+            }
+        }
+    }
 
     // Show Add/Edit Dialog
     if (uiState.showAddDialog) {
@@ -112,19 +132,56 @@ fun NoteScreen(
                         text = "CHRONOPLAN",
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1B1B1B),
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
+
+                // Search Icon
                 IconButton(
-                    onClick = { /* TODO: fitur pencarian */ },
-                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 30.dp, end = 16.dp)
+                    onClick = { showSearchBar = !showSearchBar },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 30.dp, end = 16.dp)
                 ) {
-                    Icon(Icons.Filled.Search, contentDescription = "Cari Catatan")
+                    Icon(
+                        imageVector = if (showSearchBar) Icons.Filled.Close else Icons.Filled.Search,
+                        contentDescription = "Search",
+                        tint = Color(0xFF1B1B1B)
+                    )
                 }
             }
 
+            // Search Bar
+            AnimatedVisibility(
+                visible = showSearchBar,
+                enter = fadeIn() + slideInVertically(),
+                exit = fadeOut() + slideOutVertically()
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    placeholder = { Text("Cari catatan...") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    leadingIcon = {
+                        Icon(Icons.Filled.Search, contentDescription = null)
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Clear")
+                            }
+                        }
+                    }
+                )
+            }
+
             // Grid catatan
-            if (uiState.notes.isEmpty()) {
+            if (filteredNotes.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -132,7 +189,10 @@ fun NoteScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Belum ada catatan.\nKlik tombol + untuk membuat.",
+                        text = if (searchQuery.isNotEmpty())
+                            "Tidak ada catatan yang cocok dengan pencarian."
+                        else
+                            "Belum ada catatan.\nKlik tombol + untuk membuat.",
                         color = Color.Gray,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
@@ -147,11 +207,13 @@ fun NoteScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(uiState.notes, key = { note -> note.id }) { note ->
-                        NoteCardItem(
-                            note = note,
-                            onClick = { viewModel.showDetailDialog(note) }
-                        )
+                    items(filteredNotes, key = { note -> note.id }) { note ->
+                        ScaleInAnimation {
+                            NoteCardItem(
+                                note = note,
+                                onClick = { viewModel.showDetailDialog(note) }
+                            )
+                        }
                     }
                 }
             }
@@ -230,6 +292,7 @@ fun NoteCardItem(note: NoteDto, onClick: () -> Unit) {
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
+
                 // Labels (jika ada)
                 if (note.labels.isNotEmpty()) {
                     Row(

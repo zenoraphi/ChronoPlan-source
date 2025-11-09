@@ -89,24 +89,37 @@ class AkunViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isUploadingAvatar = true)
 
-            val uploadResult = useCase.uploadAttachment(
-                localUri = imageUri,
-                remotePath = "avatars/${System.currentTimeMillis()}.jpg"
-            )
+            try {
+                val uploadResult = useCase.uploadAttachment(
+                    localUri = imageUri,
+                    remotePath = "avatars/${System.currentTimeMillis()}.jpg"
+                )
 
-            if (uploadResult.isSuccess) {
-                val avatarUrl = uploadResult.getOrNull()!!
+                if (uploadResult.isSuccess) {
+                    val avatarUrl = uploadResult.getOrNull()!!
 
-                val currentProfile = useCase.getProfile().getOrNull()
-                if (currentProfile != null) {
-                    val updatedProfile = currentProfile.copy(avatarUrl = avatarUrl)
-                    useCase.updateProfile(updatedProfile)
-                    _uiState.value = _uiState.value.copy(
-                        avatarUrl = avatarUrl,
-                        isUploadingAvatar = false
-                    )
+                    val currentProfile = useCase.getProfile().getOrNull()
+                    if (currentProfile != null) {
+                        val updatedProfile = currentProfile.copy(avatarUrl = avatarUrl)
+                        val updateResult = useCase.updateProfile(updatedProfile)
+
+                        if (updateResult.isSuccess) {
+                            _uiState.value = _uiState.value.copy(
+                                avatarUrl = avatarUrl,
+                                isUploadingAvatar = false
+                            )
+                            // Force reload profile
+                            loadProfile()
+                        } else {
+                            _uiState.value = _uiState.value.copy(isUploadingAvatar = false)
+                        }
+                    } else {
+                        _uiState.value = _uiState.value.copy(isUploadingAvatar = false)
+                    }
+                } else {
+                    _uiState.value = _uiState.value.copy(isUploadingAvatar = false)
                 }
-            } else {
+            } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isUploadingAvatar = false)
             }
         }

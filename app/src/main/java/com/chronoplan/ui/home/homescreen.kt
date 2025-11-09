@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chronoplan.R
 import com.chronoplan.di.AppViewModelFactory
+import com.chronoplan.ui.components.AnimatedCard
 // --- IMPOR KOMPONEN DARI PACKAGE LAIN ---
 import com.chronoplan.ui.components.DashboardCard
 import com.chronoplan.ui.components.ScheduleItem
@@ -139,10 +140,10 @@ fun HomeScreen(
 // --- Composable KECIL (PRIVATE) KHUSUS UNTUK HomeScreen ---
 // (Fungsi-fungsi ini MEMANGGIL komponen dari ui.components)
 
+
 @Composable
 private fun ScheduleCard(jadwalList: List<Map<String, Any>>, pieData: List<PieSlice>) {
-    // Gunakan DashboardCard dari components
-    DashboardCard {
+    AnimatedCard { // Ganti dari DashboardCard
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically

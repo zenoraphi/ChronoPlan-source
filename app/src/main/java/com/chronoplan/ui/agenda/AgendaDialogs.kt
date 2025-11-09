@@ -28,6 +28,7 @@ import com.chronoplan.data.model.AgendaDto
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.ArrowDropDown
 
 
 
@@ -62,283 +63,312 @@ fun AddAgendaDialog(
     val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale("id", "ID"))
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-    // Date Picker
-    val datePickerDialog = DatePickerDialog(
-        context,
-        { _, year, month, day ->
-            selectedDate.set(year, month, day)
-        },
-        selectedDate.get(Calendar.YEAR),
-        selectedDate.get(Calendar.MONTH),
-        selectedDate.get(Calendar.DAY_OF_MONTH)
-    )
+    val datePickerDialog = remember {
+        DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                selectedDate.set(year, month, day)
+            },
+            selectedDate.get(Calendar.YEAR),
+            selectedDate.get(Calendar.MONTH),
+            selectedDate.get(Calendar.DAY_OF_MONTH)
+        )
+    }
 
-    // Start Time Picker
-    val startTimePickerDialog = TimePickerDialog(
-        context,
-        { _, hour, minute ->
-            selectedStartTime.set(Calendar.HOUR_OF_DAY, hour)
-            selectedStartTime.set(Calendar.MINUTE, minute)
+    val startTimePickerDialog = remember {
+        TimePickerDialog(
+            context,
+            { _, hour, minute ->
+                selectedStartTime.set(Calendar.HOUR_OF_DAY, hour)
+                selectedStartTime.set(Calendar.MINUTE, minute)
+                selectedEndTime.timeInMillis = selectedStartTime.timeInMillis
+                selectedEndTime.add(Calendar.HOUR_OF_DAY, 1)
+            },
+            selectedStartTime.get(Calendar.HOUR_OF_DAY),
+            selectedStartTime.get(Calendar.MINUTE),
+            true
+        )
+    }
 
-            // Auto set end time 1 jam setelahnya
-            selectedEndTime.timeInMillis = selectedStartTime.timeInMillis
-            selectedEndTime.add(Calendar.HOUR_OF_DAY, 1)
-        },
-        selectedStartTime.get(Calendar.HOUR_OF_DAY),
-        selectedStartTime.get(Calendar.MINUTE),
-        true
-    )
-
-    // End Time Picker
-    val endTimePickerDialog = TimePickerDialog(
-        context,
-        { _, hour, minute ->
-            selectedEndTime.set(Calendar.HOUR_OF_DAY, hour)
-            selectedEndTime.set(Calendar.MINUTE, minute)
-        },
-        selectedEndTime.get(Calendar.HOUR_OF_DAY),
-        selectedEndTime.get(Calendar.MINUTE),
-        true
-    )
+    val endTimePickerDialog = remember {
+        TimePickerDialog(
+            context,
+            { _, hour, minute ->
+                selectedEndTime.set(Calendar.HOUR_OF_DAY, hour)
+                selectedEndTime.set(Calendar.MINUTE, minute)
+            },
+            selectedEndTime.get(Calendar.HOUR_OF_DAY),
+            selectedEndTime.get(Calendar.MINUTE),
+            true
+        )
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .wrapContentHeight(),
+                .fillMaxHeight(0.95f), // Perbesar dikit biar gak kebanting
             shape = RoundedCornerShape(20.dp),
             color = Color.White
         ) {
             Column(
                 modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp)
+                    .fillMaxSize()
             ) {
-                Text(
-                    text = "Jadwalkan Tugas",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Judul Agenda
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Judul Agenda") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Deskripsi
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Deskripsi/Catatan") },
+                // Header Fixed
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(100.dp),
-                    maxLines = 4
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Pilih Tanggal
-                OutlinedTextField(
-                    value = dateFormat.format(selectedDate.time),
-                    onValueChange = {},
-                    label = { Text("Tanggal") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { datePickerDialog.show() },
-                    enabled = false,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                        disabledBorderColor = MaterialTheme.colorScheme.outline,
-                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    trailingIcon = {
-                        Icon(Icons.Filled.DateRange, contentDescription = null)
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Waktu Mulai & Selesai
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .background(Color.White)
+                        .padding(24.dp)
                 ) {
-                    OutlinedTextField(
-                        value = timeFormat.format(selectedStartTime.time),
-                        onValueChange = {},
-                        label = { Text("Mulai") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { startTimePickerDialog.show() },
-                        enabled = false,
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                            disabledBorderColor = MaterialTheme.colorScheme.outline,
-                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        trailingIcon = {
-                            Icon(Icons.Filled.AccessTime, contentDescription = null)
-                        }
-                    )
-
-                    OutlinedTextField(
-                        value = timeFormat.format(selectedEndTime.time),
-                        onValueChange = {},
-                        label = { Text("Selesai") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { endTimePickerDialog.show() },
-                        enabled = false,
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                            disabledBorderColor = MaterialTheme.colorScheme.outline,
-                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        trailingIcon = {
-                            Icon(Icons.Filled.AccessTime, contentDescription = null)
-                        }
+                    Text(
+                        text = "Jadwalkan Tugas",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Pilih Icon
-                Text(
-                    text = "Pilih Icon",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.Gray
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Box(
+                // Scrollable Content
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
-                        .clickable { showIconPicker = !showIconPicker }
-                        .padding(12.dp)
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                painter = painterResource(id = availableAgendaIcons[selectedIconIndex].first),
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = availableAgendaIcons[selectedIconIndex].second)
-                        }
-                        Icon(
-                            imageVector = if (showIconPicker) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                            contentDescription = null
-                        )
-                    }
-                }
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text("Judul Agenda") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
 
-                // Icon Picker Dropdown
-                if (showIconPicker) {
-                    Card(
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        label = { Text("Deskripsi/Catatan") },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 4.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                            .height(100.dp),
+                        maxLines = 4
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = dateFormat.format(selectedDate.time),
+                        onValueChange = {},
+                        label = { Text("Tanggal") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { datePickerDialog.show() },
+                        enabled = false,
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                            disabledBorderColor = MaterialTheme.colorScheme.outline,
+                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        trailingIcon = {
+                            Icon(Icons.Filled.DateRange, contentDescription = null)
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Column {
-                            availableAgendaIcons.forEachIndexed { index, (iconRes, label) ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            selectedIconIndex = index
-                                            showIconPicker = false
-                                        }
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = iconRes),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(24.dp),
-                                        tint = if (index == selectedIconIndex) MaterialTheme.colorScheme.primary
-                                        else Color.Gray
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(
-                                        text = label,
-                                        fontWeight = if (index == selectedIconIndex) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                }
-                                if (index < availableAgendaIcons.size - 1) {
-                                    Divider()
+                        OutlinedTextField(
+                            value = timeFormat.format(selectedStartTime.time),
+                            onValueChange = {},
+                            label = { Text("Mulai") },
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { startTimePickerDialog.show() },
+                            enabled = false,
+                            colors = TextFieldDefaults.outlinedTextFieldColors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            trailingIcon = {
+                                Icon(Icons.Filled.AccessTime, contentDescription = null)
+                            }
+                        )
+
+                        OutlinedTextField(
+                            value = timeFormat.format(selectedEndTime.time),
+                            onValueChange = {},
+                            label = { Text("Selesai") },
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { endTimePickerDialog.show() },
+                            enabled = false,
+                            colors = TextFieldDefaults.outlinedTextFieldColors(
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            trailingIcon = {
+                                Icon(Icons.Filled.AccessTime, contentDescription = null)
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "Pilih Icon",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                            .clickable { showIconPicker = !showIconPicker }
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painter = painterResource(id = availableAgendaIcons[selectedIconIndex].first),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = availableAgendaIcons[selectedIconIndex].second)
+                            }
+                            Icon(
+                                imageVector = if (showIconPicker) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                contentDescription = null
+                            )
+                        }
+                    }
+
+                    if (showIconPicker) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        ) {
+                            Column {
+                                availableAgendaIcons.forEachIndexed { index, (iconRes, label) ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                selectedIconIndex = index
+                                                showIconPicker = false
+                                            }
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = iconRes),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(24.dp),
+                                            tint = if (index == selectedIconIndex) MaterialTheme.colorScheme.primary
+                                            else Color.Gray
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = label,
+                                            fontWeight = if (index == selectedIconIndex) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                    if (index < availableAgendaIcons.size - 1) {
+                                        Divider()
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                // Reminder
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "Pengingat", fontSize = 14.sp)
-                    Switch(
-                        checked = reminderEnabled,
-                        onCheckedChange = { reminderEnabled = it }
-                    )
-                }
-
-                if (reminderEnabled) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Ingatkan", fontSize = 14.sp, modifier = Modifier.weight(1f))
-                        OutlinedTextField(
-                            value = reminderMinutes.toString(),
-                            onValueChange = {
-                                reminderMinutes = it.toIntOrNull() ?: 30
-                            },
-                            modifier = Modifier.width(80.dp),
-                            singleLine = true
+                        Text(text = "Pengingat", fontSize = 14.sp)
+                        Switch(
+                            checked = reminderEnabled,
+                            onCheckedChange = { reminderEnabled = it }
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "menit sebelumnya", fontSize = 14.sp)
                     }
+
+                    if (reminderEnabled) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "Ingatkan", fontSize = 14.sp, modifier = Modifier.weight(1f))
+
+                            // Dropdown untuk pilih waktu reminder (ganti text field)
+                            var expanded by remember { mutableStateOf(false) }
+                            val reminderOptions = listOf(5, 10, 15, 30, 60, 120)
+
+                            Box {
+                                OutlinedButton(
+                                    onClick = { expanded = true },
+                                    modifier = Modifier.width(120.dp)
+                                ) {
+                                    Text("$reminderMinutes menit")
+                                    Icon(Icons.Filled.ArrowDropDown, null)
+                                }
+
+                                DropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false }
+                                ) {
+                                    reminderOptions.forEach { minutes ->
+                                        DropdownMenuItem(
+                                            text = { Text("$minutes menit") },
+                                            onClick = {
+                                                reminderMinutes = minutes
+                                                expanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (errorMessage != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = errorMessage ?: "",
+                            color = Color.Red,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                if (errorMessage != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = errorMessage ?: "",
-                        color = Color.Red,
-                        fontSize = 12.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Tombol Aksi
+                // Bottom Actions Fixed
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(24.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
@@ -350,7 +380,6 @@ fun AddAgendaDialog(
 
                     Button(
                         onClick = {
-                            // Validasi
                             when {
                                 title.isBlank() -> {
                                     errorMessage = "Judul harus diisi"
@@ -362,7 +391,6 @@ fun AddAgendaDialog(
                                 }
                             }
 
-                            // Validasi waktu tidak di masa lalu
                             val now = Calendar.getInstance()
                             val scheduledDateTime = Calendar.getInstance().apply {
                                 set(Calendar.YEAR, selectedDate.get(Calendar.YEAR))
@@ -377,13 +405,11 @@ fun AddAgendaDialog(
                                 return@Button
                             }
 
-                            // Validasi waktu selesai harus setelah waktu mulai
                             if (selectedEndTime.timeInMillis <= selectedStartTime.timeInMillis) {
                                 errorMessage = "Waktu selesai harus setelah waktu mulai"
                                 return@Button
                             }
 
-                            // Buat agenda
                             val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                                 .format(selectedDate.time)
 

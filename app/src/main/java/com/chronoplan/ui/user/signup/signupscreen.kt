@@ -28,11 +28,15 @@ fun SignUpScreen(
     viewModel: SignUpViewModel = viewModel(factory = AppViewModelFactory())
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val scope = rememberCoroutineScope()
 
     // Auto-login check
     LaunchedEffect(Unit) {
-        viewModel.checkAutoLogin {
+        viewModel.checkAutoLogin(onNavigateToHome)
+    }
+
+    // Navigate saat berhasil signup
+    LaunchedEffect(uiState.isSignedUp) {
+        if (uiState.isSignedUp) {
             onNavigateToHome()
         }
     }
@@ -124,14 +128,7 @@ fun SignUpScreen(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Button(
-                        onClick = {
-                            scope.launch {
-                                viewModel.signUp()
-                                if (viewModel.uiState.value.isSignedUp) {
-                                    onNavigateToHome()
-                                }
-                            }
-                        },
+                        onClick = { viewModel.signUp() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
@@ -148,6 +145,7 @@ fun SignUpScreen(
                             Text(text = "Sign up", fontSize = 16.sp)
                         }
                     }
+
 
                     Spacer(modifier = Modifier.height(24.dp))
 

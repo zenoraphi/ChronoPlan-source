@@ -1,7 +1,6 @@
 package com.chronoplan.ui.user.signin
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -12,14 +11,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chronoplan.R
 import com.chronoplan.di.AppViewModelFactory
 import com.chronoplan.ui.user.components.AuthScreenLayout
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,7 +27,18 @@ fun SignInScreen(
     viewModel: SignInViewModel = viewModel(factory = AppViewModelFactory())
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val scope = rememberCoroutineScope()
+
+    // Auto-login check
+    LaunchedEffect(Unit) {
+        viewModel.checkAutoLogin(onNavigateToHome)
+    }
+
+    // Navigate saat berhasil login
+    LaunchedEffect(uiState.isSignedIn) {
+        if (uiState.isSignedIn) {
+            onNavigateToHome()
+        }
+    }
 
     AuthScreenLayout(modifier = modifier) {
         Column(
@@ -79,7 +87,8 @@ fun SignInScreen(
                         onValueChange = viewModel::onEmailChange,
                         label = { Text("Email") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        enabled = !uiState.isLoading
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -90,7 +99,8 @@ fun SignInScreen(
                         label = { Text("Password") },
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = PasswordVisualTransformation(),
-                        singleLine = true
+                        singleLine = true,
+                        enabled = !uiState.isLoading
                     )
 
                     if (uiState.errorMessage != null) {
@@ -105,18 +115,12 @@ fun SignInScreen(
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Button(
-                        onClick = {
-                            scope.launch {
-                                viewModel.signIn()
-                                if (viewModel.uiState.value.isSignedIn) {
-                                    onNavigateToHome()
-                                }
-                            }
-                        },
+                        onClick = { viewModel.signIn() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !uiState.isLoading
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
@@ -131,19 +135,16 @@ fun SignInScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(text = "Don't have an account?")
                         TextButton(
                             onClick = onNavigateToSignUp,
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = MaterialTheme.colorScheme.primary
-                            )
+                            enabled = !uiState.isLoading
                         ) {
                             Text(
                                 text = "Sign up",
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -151,10 +152,4 @@ fun SignInScreen(
             }
         }
     }
-    LaunchedEffect(Unit) {
-        viewModel.checkAutoLogin {
-            onNavigateToHome()
-        }
-    }
-
 }

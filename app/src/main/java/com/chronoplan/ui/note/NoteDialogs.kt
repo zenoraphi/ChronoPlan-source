@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -46,15 +47,34 @@ fun AddEditNoteDialog(
     var currentLabel by remember { mutableStateOf("") }
     var showLabelInput by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showFullImage by remember { mutableStateOf<String?>(null) }
 
-    // Image picker
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
             onUploadImage(it)
-            // Tambahkan URI ke attachments (nanti akan di-replace dengan URL dari Firebase)
             attachments = attachments + uri.toString()
+        }
+    }
+
+    // Fullscreen Image Dialog
+    if (showFullImage != null) {
+        Dialog(onDismissRequest = { showFullImage = null }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .clickable { showFullImage = null },
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = rememberAsyncImagePainter(model = showFullImage),
+                    contentDescription = "Full Image",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
         }
     }
 
@@ -62,216 +82,226 @@ fun AddEditNoteDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.9f),
+                .fillMaxHeight(0.95f),
             shape = RoundedCornerShape(20.dp),
             color = Color.White
         ) {
             Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp)
+                modifier = Modifier.fillMaxSize()
             ) {
-                Text(
-                    text = if (existingNote == null) "Buat Catatan" else "Edit Catatan",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Judul Note
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Judul") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Toolbar Rich Text (Simplified)
-                Row(
+                // Header Fixed
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .background(Color.White)
+                        .padding(24.dp)
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IconButton(onClick = { /* Bold */ }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Filled.FormatBold, contentDescription = "Bold", modifier = Modifier.size(20.dp))
-                        }
-                        IconButton(onClick = { /* Italic */ }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Filled.FormatItalic, contentDescription = "Italic", modifier = Modifier.size(20.dp))
-                        }
-                        IconButton(onClick = { /* List */ }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Filled.FormatListBulleted, contentDescription = "List", modifier = Modifier.size(20.dp))
-                        }
-                    }
-
-                    IconButton(
-                        onClick = { imagePickerLauncher.launch("image/*") },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(Icons.Filled.Image, contentDescription = "Tambah Gambar", modifier = Modifier.size(20.dp))
-                    }
+                    Text(
+                        text = if (existingNote == null) "Buat Catatan" else "Edit Catatan",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Content Editor
-                OutlinedTextField(
-                    value = content,
-                    onValueChange = { content = it },
-                    label = { Text("Isi Catatan") },
+                // Scrollable Content
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp),
-                    maxLines = 15
-                )
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp)
+                ) {
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text("Judul") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                // Attachments Preview
-                if (attachments.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp))
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            IconButton(onClick = { /* Bold */ }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Filled.FormatBold, contentDescription = "Bold", modifier = Modifier.size(20.dp))
+                            }
+                            IconButton(onClick = { /* Italic */ }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Filled.FormatItalic, contentDescription = "Italic", modifier = Modifier.size(20.dp))
+                            }
+                            IconButton(onClick = { /* List */ }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Filled.FormatListBulleted, contentDescription = "List", modifier = Modifier.size(20.dp))
+                            }
+                        }
+
+                        IconButton(
+                            onClick = { imagePickerLauncher.launch("image/*") },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Filled.Image, contentDescription = "Tambah Gambar", modifier = Modifier.size(20.dp))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = content,
+                        onValueChange = { content = it },
+                        label = { Text("Isi Catatan") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp),
+                        maxLines = 15
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (attachments.isNotEmpty()) {
+                        Text(
+                            text = "Lampiran (${attachments.size})",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(attachments) { attachment ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(80.dp)
+                                        .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
+                                        .clickable { showFullImage = attachment }
+                                ) {
+                                    Image(
+                                        painter = rememberAsyncImagePainter(model = attachment),
+                                        contentDescription = "Attachment",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+
+                                    IconButton(
+                                        onClick = {
+                                            attachments = attachments.filter { it != attachment }
+                                        },
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .size(24.dp)
+                                            .background(Color.Red, RoundedCornerShape(12.dp))
+                                    ) {
+                                        Icon(
+                                            Icons.Filled.Close,
+                                            contentDescription = "Hapus",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
                     Text(
-                        text = "Lampiran (${attachments.size})",
+                        text = "Label",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(attachments) { attachment ->
-                            Box(
-                                modifier = Modifier
-                                    .size(80.dp)
-                                    .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
-                                    .clickable { /* Preview image */ }
-                            ) {
-                                Image(
-                                    painter = rememberAsyncImagePainter(model = attachment),
-                                    contentDescription = "Attachment",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-
-                                IconButton(
-                                    onClick = {
-                                        attachments = attachments.filter { it != attachment }
-                                    },
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .size(24.dp)
-                                        .background(Color.Red, RoundedCornerShape(12.dp))
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Close,
-                                        contentDescription = "Hapus",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                // Labels
-                Text(
-                    text = "Label",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        items(labels) { label ->
-                            AssistChip(
-                                onClick = { labels = labels.filter { it != label } },
-                                label = { Text(label, fontSize = 12.sp) },
-                                trailingIcon = {
-                                    Icon(
-                                        Icons.Filled.Close,
-                                        contentDescription = "Hapus",
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            )
-                        }
-                    }
-
-                    IconButton(
-                        onClick = { showLabelInput = !showLabelInput },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(Icons.Filled.Add, contentDescription = "Tambah Label")
-                    }
-                }
-
-                if (showLabelInput) {
-                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        OutlinedTextField(
-                            value = currentLabel,
-                            onValueChange = {
-                                if (it.length <= 15) currentLabel = it
-                            },
-                            label = { Text("Nama Label") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        Button(
-                            onClick = {
-                                if (currentLabel.isNotBlank() && labels.size < 5) {
-                                    labels = labels + currentLabel
-                                    currentLabel = ""
-                                    showLabelInput = false
-                                }
-                            }
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Text("Tambah")
+                            items(labels) { label ->
+                                AssistChip(
+                                    onClick = { labels = labels.filter { it != label } },
+                                    label = { Text(label, fontSize = 12.sp) },
+                                    trailingIcon = {
+                                        Icon(
+                                            Icons.Filled.Close,
+                                            contentDescription = "Hapus",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                )
+                            }
+                        }
+
+                        IconButton(
+                            onClick = { showLabelInput = !showLabelInput },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Filled.Add, contentDescription = "Tambah Label")
                         }
                     }
-                    Text(
-                        text = "Maksimal 15 karakter, ${labels.size}/5 label",
-                        fontSize = 10.sp,
-                        color = Color.Gray
-                    )
+
+                    if (showLabelInput) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = currentLabel,
+                                onValueChange = {
+                                    if (it.length <= 15) currentLabel = it
+                                },
+                                label = { Text("Nama Label") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            Button(
+                                onClick = {
+                                    if (currentLabel.isNotBlank() && labels.size < 5) {
+                                        labels = labels + currentLabel
+                                        currentLabel = ""
+                                        showLabelInput = false
+                                    }
+                                }
+                            ) {
+                                Text("Tambah")
+                            }
+                        }
+                        Text(
+                            text = "Maksimal 15 karakter, ${labels.size}/5 label",
+                            fontSize = 10.sp,
+                            color = Color.Gray
+                        )
+                    }
+
+                    if (errorMessage != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = errorMessage ?: "",
+                            color = Color.Red,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                if (errorMessage != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = errorMessage ?: "",
-                        color = Color.Red,
-                        fontSize = 12.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Action Buttons
+                // Bottom Actions Fixed
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(24.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
@@ -329,6 +359,42 @@ fun NoteDetailDialog(
     onDelete: () -> Unit,
     onToggleFavorite: () -> Unit
 ) {
+    var showFullImage by remember { mutableStateOf<String?>(null) }
+
+    // Fullscreen Image Dialog
+    if (showFullImage != null) {
+        Dialog(onDismissRequest = { showFullImage = null }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .clickable { showFullImage = null },
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = rememberAsyncImagePainter(model = showFullImage),
+                    contentDescription = "Full Image",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+
+                IconButton(
+                    onClick = { showFullImage = null },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = "Close",
+                        tint = Color.White
+                    )
+                }
+            }
+        }
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
@@ -342,7 +408,6 @@ fun NoteDetailDialog(
                     .verticalScroll(rememberScrollState())
                     .padding(24.dp)
             ) {
-                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -376,7 +441,6 @@ fun NoteDetailDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Labels
                 if (note.labels.isNotEmpty()) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(note.labels) { label ->
@@ -393,7 +457,6 @@ fun NoteDetailDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Content
                 Text(
                     text = note.content,
                     fontSize = 14.sp,
@@ -402,7 +465,6 @@ fun NoteDetailDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Attachments
                 if (note.attachments.isNotEmpty()) {
                     Text(
                         text = "Lampiran",
@@ -417,7 +479,7 @@ fun NoteDetailDialog(
                                 modifier = Modifier
                                     .size(120.dp)
                                     .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
-                                    .clickable { /* Open fullscreen */ }
+                                    .clickable { showFullImage = attachment }
                             ) {
                                 Image(
                                     painter = rememberAsyncImagePainter(model = attachment),

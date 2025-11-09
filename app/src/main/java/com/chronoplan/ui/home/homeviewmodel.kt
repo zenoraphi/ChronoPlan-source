@@ -7,6 +7,7 @@ import com.chronoplan.R
 import com.chronoplan.domain.usecase.ChronoUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -19,11 +20,13 @@ data class PieSlice(
 
 data class HomeUiState(
     val tanggal: String = "",
-    val infoTugas: String = "",
+    val infoTugas: String = "Memuat...",
     val jadwalHariIni: List<Map<String, Any>> = emptyList(),
     val historyNotes: List<String> = emptyList(),
     val tugasTerlambat: Int = 0,
-    val pieChartData: List<PieSlice> = emptyList(),
+    val pieChartData: List<PieSlice> = listOf(
+        PieSlice(1f, Color.LightGray, "Belum ada data")
+    ),
     val isLoading: Boolean = true
 )
 
@@ -48,15 +51,25 @@ class HomeViewModel(
                 isLoading = true
             )
 
-            // Load Agendas
-            useCase.observeAgendas().collect { agendas ->
+            // Combine agendas dan notes jadi satu flow
+            combine(
+                useCase.observeAgendas(),
+                useCase.observeNotes()
+            ) { agendas, notes ->
+                Pair(agendas, notes)
+            }.collect { (agendas, notes) ->
                 val todayAgendas = agendas.filter { it.date == today }
 
                 val done = todayAgendas.count { it.status == "done" }
                 val pending = todayAgendas.count { it.status == "pending" }
                 val missed = agendas.count {
                     it.status != "done" &&
-                            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(it.date)?.before(Date()) == true
+                            try {
+                                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                                    .parse(it.date)?.before(Date()) == true
+                            } catch (e: Exception) {
+                                false
+                            }
                 }
 
                 val jadwalList = todayAgendas.take(4).map { agenda ->
@@ -72,25 +85,22 @@ class HomeViewModel(
                     listOf(
                         PieSlice(done / total, Color(0xFF4CAF50), "Selesai"),
                         PieSlice(pending / total, Color(0xFFFFC107), "Tertunda"),
-                        PieSlice(missed / total.coerceAtLeast(1f), Color(0xFFF44336), "Terlambat")
-                    )
+                        PieSlice(missed.toFloat() / total.coerceAtLeast(1f), Color(0xFFF44336), "Terlambat")
+                    ).filter { it.percentage > 0 }
                 } else {
                     listOf(PieSlice(1f, Color.LightGray, "Belum ada"))
                 }
 
-                // Load Notes
-                useCase.observeNotes().collect { notes ->
-                    val notesList = notes.take(3).map { it.title }
+                val notesList = notes.take(3).map { it.title }
 
-                    _uiState.value = _uiState.value.copy(
-                        infoTugas = "${todayAgendas.size} Tugas Hari Ini",
-                        jadwalHariIni = jadwalList,
-                        historyNotes = notesList,
-                        tugasTerlambat = missed,
-                        pieChartData = pieData,
-                        isLoading = false
-                    )
-                }
+                _uiState.value = _uiState.value.copy(
+                    infoTugas = "${todayAgendas.size} Tugas Hari Ini",
+                    jadwalHariIni = jadwalList,
+                    historyNotes = notesList,
+                    tugasTerlambat = missed,
+                    pieChartData = pieData,
+                    isLoading = false
+                )
             }
         }
     }
