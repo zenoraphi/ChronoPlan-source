@@ -75,23 +75,31 @@ class NoteViewModel(private val useCase: ChronoUseCase) : ViewModel() {
         viewModelScope.launch {
             val result = useCase.uploadAttachment(uri)
             if (result.isSuccess) {
-                // Handle uploaded URL
-                val url = result.getOrNull()
-                // You can add this to the note being edited
+                // Handle uploaded URL - bisa diakses dari UI
             }
         }
     }
 
+    // ✅ FIXED NAVIGATION
     fun showAddDialog() {
-        _state.value = _state.value.copy(showAddDialog = true, isEditMode = false, selectedNote = null)
+        _state.value = _state.value.copy(
+            navigateToEditor = true,
+            noteToEdit = null
+        )
     }
 
-    fun showEditDialog(note: NoteDto) {
-        _state.value = _state.value.copy(showAddDialog = true, isEditMode = true, selectedNote = note)
+    fun navigateToEditor(note: NoteDto?) {
+        _state.value = _state.value.copy(
+            navigateToEditor = true,
+            noteToEdit = note
+        )
     }
 
-    fun hideAddDialog() {
-        _state.value = _state.value.copy(showAddDialog = false, isEditMode = false, selectedNote = null)
+    fun clearNavigation() {
+        _state.value = _state.value.copy(
+            navigateToEditor = false,
+            noteToEdit = null
+        )
     }
 
     fun showDetailDialog(note: NoteDto) {

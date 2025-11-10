@@ -22,7 +22,7 @@ data class HomeUiState(
     val tanggal: String = "",
     val infoTugas: String = "Memuat...",
     val jadwalHariIni: List<Map<String, Any>> = emptyList(),
-    val historyNotes: List<String> = emptyList(), // ✅ Akan diisi dengan judul note
+    val historyNotes: List<String> = emptyList(),
     val tugasTerlambat: Int = 0,
     val pieChartData: List<PieSlice> = listOf(
         PieSlice(1f, Color.LightGray, "Belum ada data")
@@ -37,13 +37,13 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState = _uiState.asStateFlow()
 
+    // ✅ State untuk data lengkap
+    private var allAgendas: List<com.chronoplan.data.model.AgendaDto> = emptyList()
+    private var allNotes: List<com.chronoplan.data.model.NoteDto> = emptyList()
+
     init {
         loadData()
     }
-
-    // ✅ State untuk data lengkap (bukan hanya preview)
-    private var allAgendas: List<com.chronoplan.data.model.AgendaDto> = emptyList()
-    private var allNotes: List<com.chronoplan.data.model.NoteDto> = emptyList()
 
     private fun loadData() {
         viewModelScope.launch {
@@ -61,27 +61,23 @@ class HomeViewModel(
             ) { agendas, notes ->
                 Pair(agendas, notes)
             }.collect { (agendas, notes) ->
-                // ✅ Simpan data lengkap
                 allAgendas = agendas
                 allNotes = notes
 
+                // ✅ FILTER AGENDA HARI INI SAJA
                 val todayAgendas = agendas.filter { it.date == today }
 
+                // ✅ HITUNG STATUS HARI INI
                 val done = todayAgendas.count { it.status == "done" }
                 val pending = todayAgendas.count { it.status == "pending" }
                 val missed = todayAgendas.count { it.status == "missed" }
 
+                // ✅ TUGAS TERLAMBAT (agenda dengan tanggal < hari ini DAN belum selesai)
                 val lateCount = agendas.count { agenda ->
-                    agenda.status != "done" &&
-                            try {
-                                val agendaDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(agenda.date)
-                                val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(today)
-                                agendaDate?.before(currentDate) == true
-                            } catch (e: Exception) {
-                                false
-                            }
+                    agenda.status != "done" && agenda.date < today
                 }
 
+                // ✅ JADWAL LIST (max 4)
                 val jadwalList = todayAgendas.take(4).map { agenda ->
                     mapOf(
                         "icon" to R.drawable.ic_work,
@@ -89,6 +85,7 @@ class HomeViewModel(
                     )
                 }
 
+                // ✅ PIE CHART HANYA DARI AGENDA HARI INI
                 val total = todayAgendas.size.toFloat()
                 val pieData = if (total > 0) {
                     listOf(
@@ -97,10 +94,14 @@ class HomeViewModel(
                         PieSlice(missed / total, Color(0xFFF44336), "Terlewat")
                     ).filter { it.percentage > 0 }
                 } else {
-                    listOf(PieSlice(1f, Color.LightGray, "Belum ada"))
+                    listOf(PieSlice(1f, Color(0xFFE0E0E0), "Belum ada"))
                 }
 
-                val notesList = notes.sortedByDescending { it.updatedAt }.take(3).map { it.title }
+                // ✅ HISTORY NOTES (max 3 terbaru)
+                val notesList = notes
+                    .sortedByDescending { it.updatedAt }
+                    .take(3)
+                    .map { it.title }
 
                 _uiState.value = _uiState.value.copy(
                     infoTugas = "${todayAgendas.size} Tugas Hari Ini",
@@ -114,25 +115,20 @@ class HomeViewModel(
         }
     }
 
-    // ✅ Fungsi untuk dialog
+    // ✅ GET LATE TASKS (dengan tanggal < hari ini)
     fun getLateTasks(): List<com.chronoplan.data.model.AgendaDto> {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-        return allAgendas.filter { agenda ->
-            agenda.status != "done" &&
-                    try {
-                        val agendaDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(agenda.date)
-                        val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(today)
-                        agendaDate?.before(currentDate) == true
-                    } catch (e: Exception) {
-                        false
-                    }
-        }
+        return allAgendas.filter { it.status != "done" && it.date < today }
+            .sortedBy { it.date }
     }
 
+    // ✅ GET FAVORITE NOTES
     fun getFavoriteNotes(): List<com.chronoplan.data.model.NoteDto> {
         return allNotes.filter { it.isFavorite }
+            .sortedByDescending { it.updatedAt }
     }
 
+    // ✅ GET ALL NOTES
     fun getAllNotes(): List<com.chronoplan.data.model.NoteDto> {
         return allNotes.sortedByDescending { it.updatedAt }
     }

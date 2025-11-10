@@ -7,6 +7,7 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 data class SignUpUiState(
     val displayName: String = "",
@@ -14,7 +15,8 @@ data class SignUpUiState(
     val password: String = "",
     val isLoading: Boolean = false,
     val isSignedUp: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val showVerificationDialog: Boolean = false // ✅ Dialog verifikasi
 )
 
 class SignUpViewModel(private val useCase: ChronoUseCase) : ViewModel() {
@@ -36,7 +38,8 @@ class SignUpViewModel(private val useCase: ChronoUseCase) : ViewModel() {
 
     fun checkAutoLogin(onAlreadyLoggedIn: () -> Unit) {
         val user = FirebaseAuth.getInstance().currentUser
-        if (user != null) {
+        // ✅ Cek verifikasi email
+        if (user != null && user.isEmailVerified) {
             onAlreadyLoggedIn()
         }
     }
@@ -44,10 +47,14 @@ class SignUpViewModel(private val useCase: ChronoUseCase) : ViewModel() {
     fun signUp() {
         val state = _uiState.value
 
-        // Validasi input
+        // ✅ VALIDASI KETAT
         when {
             state.displayName.isBlank() -> {
                 _uiState.value = state.copy(errorMessage = "Nama harus diisi")
+                return
+            }
+            state.displayName.length < 3 -> {
+                _uiState.value = state.copy(errorMessage = "Nama minimal 3 karakter")
                 return
             }
             state.email.isBlank() -> {
@@ -58,6 +65,11 @@ class SignUpViewModel(private val useCase: ChronoUseCase) : ViewModel() {
                 _uiState.value = state.copy(errorMessage = "Format email tidak valid")
                 return
             }
+            // ✅ CEK EMAIL DUMMY
+            isDummyEmail(state.email) -> {
+                _uiState.value = state.copy(errorMessage = "Gunakan email asli yang valid")
+                return
+            }
             state.password.isBlank() -> {
                 _uiState.value = state.copy(errorMessage = "Password harus diisi")
                 return
@@ -66,33 +78,84 @@ class SignUpViewModel(private val useCase: ChronoUseCase) : ViewModel() {
                 _uiState.value = state.copy(errorMessage = "Password minimal 6 karakter")
                 return
             }
+            // ✅ PASSWORD HARUS KUAT
+            !isStrongPassword(state.password) -> {
+                _uiState.value = state.copy(
+                    errorMessage = "Password harus mengandung huruf dan angka"
+                )
+                return
+            }
         }
 
         viewModelScope.launch {
             _uiState.value = state.copy(isLoading = true, errorMessage = null)
             try {
+                // ✅ REGISTER + KIRIM VERIFIKASI EMAIL
                 val result = useCase.registerUser(state.email, state.password, state.displayName)
+
                 if (result.isSuccess) {
-                    _uiState.value = _uiState.value.copy(isSignedUp = true, isLoading = false)
+                    // ✅ KIRIM EMAIL VERIFIKASI
+                    val user = FirebaseAuth.getInstance().currentUser
+                    user?.sendEmailVerification()?.await()
+
+                    // ✅ LOGOUT & TAMPILKAN DIALOG
+                    FirebaseAuth.getInstance().signOut()
+
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        showVerificationDialog = true
+                    )
                 } else {
                     val errorMsg = result.exceptionOrNull()?.message ?: "Gagal mendaftar"
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        errorMessage = when {
-                            errorMsg.contains("email address is already in use", ignoreCase = true) ->
-                                "Email sudah terdaftar"
-                            errorMsg.contains("network", ignoreCase = true) ->
-                                "Tidak ada koneksi internet"
-                            else -> errorMsg
-                        }
+                        errorMessage = parseErrorMessage(errorMsg)
                     )
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = e.message ?: "Error tidak diketahui"
+                    errorMessage = "Terjadi kesalahan: ${e.message}"
                 )
             }
         }
+    }
+
+    // ✅ DETEKSI EMAIL DUMMY
+    private fun isDummyEmail(email: String): Boolean {
+        val dummyPatterns = listOf(
+            "test", "dummy", "fake", "asdf", "qwerty",
+            "aaaa", "bbbb", "cccc", "dddd", "eeee",
+            "1234", "sample", "example"
+        )
+
+        val emailLower = email.lowercase()
+        return dummyPatterns.any { emailLower.contains(it) }
+    }
+
+    // ✅ CEK PASSWORD KUAT
+    private fun isStrongPassword(password: String): Boolean {
+        val hasLetter = password.any { it.isLetter() }
+        val hasDigit = password.any { it.isDigit() }
+        return hasLetter && hasDigit
+    }
+
+    // ✅ PARSE ERROR MESSAGE
+    private fun parseErrorMessage(error: String): String {
+        return when {
+            error.contains("email address is already in use", ignoreCase = true) ->
+                "Email sudah terdaftar. Gunakan email lain."
+            error.contains("network", ignoreCase = true) ->
+                "Tidak ada koneksi internet"
+            error.contains("weak-password", ignoreCase = true) ->
+                "Password terlalu lemah"
+            error.contains("invalid-email", ignoreCase = true) ->
+                "Format email tidak valid"
+            else -> error
+        }
+    }
+
+    fun dismissVerificationDialog() {
+        _uiState.value = _uiState.value.copy(showVerificationDialog = false)
     }
 }
