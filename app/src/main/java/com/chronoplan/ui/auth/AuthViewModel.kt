@@ -2,60 +2,61 @@ package com.chronoplan.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.chronoplan.domain.usecase.ChronoUseCase
+import com.chronoplan.data.repository.FirebaseAuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-data class AuthUiState(
-    val email: String = "",
-    val password: String = "",
+data class AuthState(
     val isLoading: Boolean = false,
-    val errorMessage: String? = null,
-    val isAuthenticated: Boolean = false
+    val message: String? = null,
+    val isVerified: Boolean = false,
+    val isSuccess: Boolean = false
 )
 
-class AuthViewModel(private val useCase: ChronoUseCase) : ViewModel() {
-    private val _ui = MutableStateFlow(AuthUiState())
-    val ui: StateFlow<AuthUiState> = _ui.asStateFlow()
+class AuthViewModel(
+    private val repo: FirebaseAuthRepository = FirebaseAuthRepository()
+) : ViewModel() {
 
-    fun setEmail(e: String) { _ui.value = _ui.value.copy(email = e) }
-    fun setPassword(p: String) { _ui.value = _ui.value.copy(password = p) }
+    private val _state = MutableStateFlow(AuthState())
+    val state: StateFlow<AuthState> = _state
 
-    fun signIn() {
-        val email = _ui.value.email.trim()
-        val pwd = _ui.value.password
-        if (email.isEmpty() || pwd.isEmpty()) {
-            _ui.value = _ui.value.copy(errorMessage = "Email atau password kosong")
-            return
-        }
+    fun signUp(email: String, password: String) {
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(isLoading = true, errorMessage = null)
-            val res = useCase.signInWithEmail(email, pwd)
-            if (res.isSuccess) {
-                _ui.value = _ui.value.copy(isLoading = false, isAuthenticated = true)
+            _state.value = AuthState(isLoading = true)
+            val result = repo.signUp(email, password)
+            _state.value = if (result.isSuccess) {
+                AuthState(message = result.getOrNull(), isSuccess = true)
             } else {
-                _ui.value = _ui.value.copy(isLoading = false, errorMessage = res.exceptionOrNull()?.message)
+                AuthState(message = result.exceptionOrNull()?.message)
             }
         }
     }
 
-    fun signUp(displayName: String? = null) {
-        val email = _ui.value.email.trim()
-        val pwd = _ui.value.password
-        if (email.isEmpty() || pwd.isEmpty()) {
-            _ui.value = _ui.value.copy(errorMessage = "Email atau password kosong")
-            return
-        }
+    fun signIn(email: String, password: String) {
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(isLoading = true, errorMessage = null)
-            val res = useCase.signUpWithEmail(email, pwd, displayName)
-            if (res.isSuccess) {
-                _ui.value = _ui.value.copy(isLoading = false, isAuthenticated = true)
+            _state.value = AuthState(isLoading = true)
+            val result = repo.signIn(email, password)
+            _state.value = if (result.isSuccess) {
+                AuthState(isSuccess = true, isVerified = true)
             } else {
-                _ui.value = _ui.value.copy(isLoading = false, errorMessage = res.exceptionOrNull()?.message)
+                AuthState(message = result.exceptionOrNull()?.message)
             }
         }
+    }
+
+    fun reloadVerification() {
+        viewModelScope.launch {
+            val verified = repo.reloadUser()
+            _state.value = _state.value.copy(
+                message = if (verified) "Email sudah diverifikasi" else "Belum diverifikasi",
+                isVerified = verified
+            )
+        }
+    }
+
+    fun signOut() {
+        repo.signOut()
+        _state.value = AuthState()
     }
 }

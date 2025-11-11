@@ -16,7 +16,7 @@ data class SignUpUiState(
     val isLoading: Boolean = false,
     val isSignedUp: Boolean = false,
     val errorMessage: String? = null,
-    val showVerificationDialog: Boolean = false // ✅ Dialog verifikasi
+    val showVerificationDialog: Boolean = false
 )
 
 class SignUpViewModel(private val useCase: ChronoUseCase) : ViewModel() {
@@ -38,7 +38,7 @@ class SignUpViewModel(private val useCase: ChronoUseCase) : ViewModel() {
 
     fun checkAutoLogin(onAlreadyLoggedIn: () -> Unit) {
         val user = FirebaseAuth.getInstance().currentUser
-        // ✅ Cek verifikasi email
+        // Cek verifikasi email
         if (user != null && user.isEmailVerified) {
             onAlreadyLoggedIn()
         }
@@ -47,7 +47,7 @@ class SignUpViewModel(private val useCase: ChronoUseCase) : ViewModel() {
     fun signUp() {
         val state = _uiState.value
 
-        // ✅ VALIDASI KETAT
+        // Validasi ketat
         when {
             state.displayName.isBlank() -> {
                 _uiState.value = state.copy(errorMessage = "Nama harus diisi")
@@ -65,7 +65,6 @@ class SignUpViewModel(private val useCase: ChronoUseCase) : ViewModel() {
                 _uiState.value = state.copy(errorMessage = "Format email tidak valid")
                 return
             }
-            // ✅ CEK EMAIL DUMMY
             isDummyEmail(state.email) -> {
                 _uiState.value = state.copy(errorMessage = "Gunakan email asli yang valid")
                 return
@@ -78,7 +77,6 @@ class SignUpViewModel(private val useCase: ChronoUseCase) : ViewModel() {
                 _uiState.value = state.copy(errorMessage = "Password minimal 6 karakter")
                 return
             }
-            // ✅ PASSWORD HARUS KUAT
             !isStrongPassword(state.password) -> {
                 _uiState.value = state.copy(
                     errorMessage = "Password harus mengandung huruf dan angka"
@@ -90,15 +88,15 @@ class SignUpViewModel(private val useCase: ChronoUseCase) : ViewModel() {
         viewModelScope.launch {
             _uiState.value = state.copy(isLoading = true, errorMessage = null)
             try {
-                // ✅ REGISTER + KIRIM VERIFIKASI EMAIL
+                // Register + kirim verifikasi email
                 val result = useCase.registerUser(state.email, state.password, state.displayName)
 
                 if (result.isSuccess) {
-                    // ✅ KIRIM EMAIL VERIFIKASI
+                    // Kirim email verifikasi
                     val user = FirebaseAuth.getInstance().currentUser
                     user?.sendEmailVerification()?.await()
 
-                    // ✅ LOGOUT & TAMPILKAN DIALOG
+                    // Logout dan tampilkan dialog
                     FirebaseAuth.getInstance().signOut()
 
                     _uiState.value = _uiState.value.copy(
@@ -121,7 +119,6 @@ class SignUpViewModel(private val useCase: ChronoUseCase) : ViewModel() {
         }
     }
 
-    // ✅ DETEKSI EMAIL DUMMY
     private fun isDummyEmail(email: String): Boolean {
         val dummyPatterns = listOf(
             "test", "dummy", "fake", "asdf", "qwerty",
@@ -133,14 +130,12 @@ class SignUpViewModel(private val useCase: ChronoUseCase) : ViewModel() {
         return dummyPatterns.any { emailLower.contains(it) }
     }
 
-    // ✅ CEK PASSWORD KUAT
     private fun isStrongPassword(password: String): Boolean {
         val hasLetter = password.any { it.isLetter() }
         val hasDigit = password.any { it.isDigit() }
         return hasLetter && hasDigit
     }
 
-    // ✅ PARSE ERROR MESSAGE
     private fun parseErrorMessage(error: String): String {
         return when {
             error.contains("email address is already in use", ignoreCase = true) ->

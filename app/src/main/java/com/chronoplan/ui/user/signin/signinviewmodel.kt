@@ -35,12 +35,12 @@ class SignInViewModel(private val useCase: ChronoUseCase) : ViewModel() {
             val res = useCase.signInWithEmail(_uiState.value.email, _uiState.value.password)
 
             if (res.isSuccess) {
-                // ✅ Cek verifikasi email
+                // Cek verifikasi email
                 val user = FirebaseAuth.getInstance().currentUser
                 if (user != null && user.isEmailVerified) {
                     _uiState.update { it.copy(isLoading = false, isSignedIn = true) }
                 } else {
-                    // ✅ Belum verifikasi
+                    // Belum verifikasi
                     FirebaseAuth.getInstance().signOut()
                     _uiState.update {
                         it.copy(

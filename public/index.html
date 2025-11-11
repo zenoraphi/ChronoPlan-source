@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verifikasi Email | ChronoPlan</title>
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+      import { getAuth, applyActionCode } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyATQO128JDetlVYsreyHdZT1kGEzM7ATl4",
+        authDomain: "chronoplan-last-project.firebaseapp.com",
+        projectId: "chronoplan-last-project",
+        storageBucket: "chronoplan-last-project.firebasestorage.app",
+        messagingSenderId: "162022726071",
+        appId: "1:162022726071:web:2ec45d4699750b39f7f032",
+        measurementId: "G-0W6B42SJNC"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const mode = urlParams.get("mode");
+      const oobCode = urlParams.get("oobCode");
+
+      async function verifyEmail() {
+        const msg = document.getElementById("msg");
+        if (mode === "verifyEmail" && oobCode) {
+          try {
+            await applyActionCode(auth, oobCode);
+            msg.textContent =
+              "✅ Email kamu sudah diverifikasi! Mengarahkan ke aplikasi...";
+            
+            // tunggu 2 detik lalu redirect ke aplikasi Android
+            setTimeout(() => {
+              window.location.href = "chronoplan://verified"; // <— Ganti scheme ini sesuai intent-filter kamu
+            }, 2000);
+          } catch (error) {
+            console.error(error);
+            msg.textContent =
+              "❌ Gagal memverifikasi email. Link mungkin sudah kadaluarsa atau tidak valid.";
+          }
+        } else {
+          msg.textContent = "⚠️ Link verifikasi tidak valid.";
+        }
+      }
+
+      verifyEmail();
+    </script>
+  </head>
+  <body style="font-family: Arial, sans-serif; text-align: center; margin-top: 100px;">
+    <h2>ChronoPlan Email Verification</h2>
+    <p id="msg">Memverifikasi email kamu...</p>
+  </body>
+</html>

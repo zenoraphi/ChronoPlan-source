@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
@@ -15,15 +16,26 @@
         android:theme="@style/Theme.Chronoplan"
         tools:targetApi="31">
 
-
-    <activity
-            android:name=".MainActivity" android:exported="true"
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.Chronoplan">
+
+            <!-- launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- deep link -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="chronoplan" android:host="verified" />
+            </intent-filter>
+
         </activity>
 
     </application>

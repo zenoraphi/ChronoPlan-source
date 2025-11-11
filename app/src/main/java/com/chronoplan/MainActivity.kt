@@ -1,9 +1,11 @@
 package com.chronoplan
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,15 +41,11 @@ class MainActivity : ComponentActivity() {
             .setPersistenceEnabled(true)
             .build()
 
-        // NOTE:
-        // You can construct your repository here if you need it at app start.
-        // But avoid depending on it in Activity if you use DI container/AppContainer.
-        // val repo = FirestoreChronoRepository(firestore, FirebaseStorage.getInstance(), FirebaseAuth.getInstance())
-
-        // Request POST_NOTIFICATIONS on Android 13+
+        // ---- PERMISSION ----
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
+                != PackageManager.PERMISSION_GRANTED
+            ) {
                 ActivityCompat.requestPermissions(
                     this,
                     arrayOf(Manifest.permission.POST_NOTIFICATIONS),
@@ -56,7 +54,10 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // UI
+        // ---- HANDLE DEEP LINK ----
+        handleDeepLink(intent)
+
+        // ---- UI ----
         setContent {
             ChronoplanTheme {
                 Surface(
@@ -64,6 +65,36 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     AppNavigation()
+                }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    private fun handleDeepLink(intent: Intent?) {
+        intent?.data?.let { uri ->
+            Log.d("DeepLink", "Received URI: $uri")
+
+            if (uri.scheme == "chronoplan" && uri.host == "verified") {
+                // TODO: Aksi setelah email diverifikasi
+                Log.d("DeepLink", "Email verified link detected!")
+
+                // Contoh: ubah status verifikasi di Firebase
+                val user = FirebaseAuth.getInstance().currentUser
+                user?.reload()?.addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        if (user.isEmailVerified) {
+                            Log.d("DeepLink", "Email sudah diverifikasi!")
+                            // TODO: arahkan ke halaman login atau home
+                            // misal pakai SharedPreferences atau Navigation
+                        } else {
+                            Log.d("DeepLink", "Email belum diverifikasi.")
+                        }
+                    }
                 }
             }
         }

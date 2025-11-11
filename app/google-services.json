@@ -12,7 +12,20 @@
           "package_name": "com.chronoplan"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "162022726071-bh5hjkcvn0ufk0ape0bq22vjrmgofnef.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.chronoplan",
+            "certificate_hash": "bb9fe72383ba45272733a4ad7009c71d39f59f87"
+          }
+        },
+        {
+          "client_id": "162022726071-bq78l9n7gcrvcc0j07aa1moic7jnk4al.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBzeB7tXJNPxazbv9X9UhUe71nY0BybqU4"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "162022726071-bq78l9n7gcrvcc0j07aa1moic7jnk4al.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

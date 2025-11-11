@@ -11,26 +11,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Alignment
 
-/**
- * AnimatedCard
- * - content sekarang bertipe ColumnScope.() -> Unit supaya bisa memanfaatkan ColumnScope
- *   (mis. Modifier.weight, alignByBaseline, dll) dari dalam content.
- */
 @Composable
 fun AnimatedCard(
     modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable () -> Unit
 ) {
     var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { visible = true }
+
+    LaunchedEffect(Unit) {
+        visible = true
+    }
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(400)) + slideInVertically { it / 3 },
-        exit = fadeOut()
+        enter = fadeIn(animationSpec = tween(300)) +
+                slideInVertically(initialOffsetY = { it / 2 }),
+        exit = fadeOut() + slideOutVertically()
     ) {
         Card(
             modifier = modifier,
@@ -39,24 +37,19 @@ fun AnimatedCard(
             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
-                content = content // sekarang cocok: ColumnScope.() -> Unit
-            )
+                modifier = Modifier.padding(16.dp)
+            ) {
+                content()
+            }
         }
     }
 }
 
-/**
- * ScaleInAnimation
- * - animateFloatAsState but beri targetValue dinamis; kita mulai dari 0.95 -> 1f
- * - jika kamu ingin memicu animasi masuk hanya sekali, bisa tambahkan key atau state trigger
- */
 @Composable
 fun ScaleInAnimation(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    // mulai sedikit kecil lalu mengembang ke 1f
     var enabled by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { enabled = true }
 
@@ -77,28 +70,24 @@ fun ScaleInAnimation(
     }
 }
 
-/**
- * PulseAnimation
- * - efek pulse berulang menggunakan rememberInfiniteTransition
- */
 @Composable
 fun PulseAnimation(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    val infiniteTransition = rememberInfiniteTransition()
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 0.95f,
         targetValue = 1.05f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000),
+            animation = tween(1000),
             repeatMode = RepeatMode.Reverse
-        )
+        ),
+        label = "pulse_scale"
     )
 
     Box(
-        modifier = modifier.scale(scale),
-        contentAlignment = Alignment.Center
+        modifier = modifier.scale(scale)
     ) {
         content()
     }

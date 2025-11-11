@@ -10,10 +10,10 @@ import com.chronoplan.ui.agenda.AgendaViewModel
 import com.chronoplan.ui.akun.AkunViewModel
 import com.chronoplan.ui.note.NoteViewModel
 import com.chronoplan.ui.user.signup.SignUpViewModel
+import com.chronoplan.ui.home.HomeViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
-import com.chronoplan.ui.home.HomeViewModel
 
 @Suppress("UNCHECKED_CAST")
 class AppViewModelFactory : ViewModelProvider.Factory {
