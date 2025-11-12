@@ -18,7 +18,9 @@ data class NoteUiState(
     val showDetailDialog: Boolean = false,
     val selectedNote: NoteDto? = null,
     val navigateToEditor: Boolean = false,
-    val noteToEdit: NoteDto? = null
+    val noteToEdit: NoteDto? = null,
+    val uploadedImageUrl: String? = null, // ✅ NEW: untuk track uploaded image
+    val isUploadingImage: Boolean = false
 )
 
 class NoteViewModel(private val useCase: ChronoUseCase) : ViewModel() {
@@ -71,16 +73,32 @@ class NoteViewModel(private val useCase: ChronoUseCase) : ViewModel() {
         }
     }
 
+    // ✅ FIXED: Upload dengan tracking state
     fun uploadAttachment(uri: Uri) {
         viewModelScope.launch {
-            val result = useCase.uploadAttachment(uri)
-            if (result.isSuccess) {
-                // Handle uploaded URL - bisa diakses dari UI
+            _state.value = _state.value.copy(isUploadingImage = true)
+
+            try {
+                val result = useCase.uploadAttachment(uri)
+                if (result.isSuccess) {
+                    val url = result.getOrNull()
+                    _state.value = _state.value.copy(
+                        uploadedImageUrl = url,
+                        isUploadingImage = false
+                    )
+                } else {
+                    _state.value = _state.value.copy(isUploadingImage = false)
+                }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(isUploadingImage = false)
             }
         }
     }
 
-    // ✅ FIXED NAVIGATION
+    fun clearUploadedImage() {
+        _state.value = _state.value.copy(uploadedImageUrl = null)
+    }
+
     fun showAddDialog() {
         _state.value = _state.value.copy(
             navigateToEditor = true,

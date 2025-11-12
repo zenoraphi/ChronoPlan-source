@@ -116,11 +116,25 @@ class FirestoreChronoRepository(
     override suspend fun uploadAttachment(localUri: Uri, remotePath: String?): Result<String> {
         return try {
             val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Belum login"))
-            val path = remotePath ?: "uploads/$uid/${System.currentTimeMillis()}"
+
+            // ✅ Generate unique filename
+            val timestamp = System.currentTimeMillis()
+            val fileName = "img_$timestamp.jpg"
+            val path = remotePath ?: "user_uploads/$uid/$fileName"
+
             val ref = storage.reference.child(path)
-            ref.putFile(localUri).await()
-            val url = ref.downloadUrl.await().toString()
-            Result.success(url)
+
+            // ✅ Upload file dengan await
+            val uploadTask = ref.putFile(localUri).await()
+
+            // ✅ Pastikan upload berhasil
+            if (uploadTask.task.isSuccessful) {
+                // ✅ Get download URL
+                val downloadUrl = ref.downloadUrl.await()
+                Result.success(downloadUrl.toString())
+            } else {
+                Result.failure(Exception("Upload gagal"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }

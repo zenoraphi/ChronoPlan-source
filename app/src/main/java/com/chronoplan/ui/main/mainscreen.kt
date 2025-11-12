@@ -9,11 +9,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavType
 import androidx.navigation.compose.*
-import androidx.navigation.navArgument
 import com.chronoplan.R
-import com.chronoplan.data.model.NoteDto
 import com.chronoplan.ui.agenda.AgendaScreen
 import com.chronoplan.ui.akun.AkunScreen
 import com.chronoplan.ui.home.HomeScreen
@@ -47,9 +44,11 @@ fun MainScreen(
     val mainNavController = rememberNavController()
     val noteViewModel: NoteViewModel = viewModel(factory = AppViewModelFactory())
 
+    // ✅ Track uploaded image URL
+    val noteUiState by noteViewModel.state.collectAsState()
+
     var showBottomBar by remember { mutableStateOf(true) }
 
-    // Hide bottom bar on note editor
     mainNavController.addOnDestinationChangedListener { _, destination, _ ->
         showBottomBar = destination.route != Screen.NoteEditor.route
     }
@@ -113,8 +112,21 @@ fun MainScreen(
             }
             composable(Screen.NoteEditor.route) {
                 val noteToEdit = noteViewModel.state.collectAsState().value.noteToEdit
+
+                // ✅ FIXED: Observe uploaded image dan update attachments
+                var attachments by remember {
+                    mutableStateOf(noteToEdit?.attachments ?: emptyList())
+                }
+
+                LaunchedEffect(noteUiState.uploadedImageUrl) {
+                    noteUiState.uploadedImageUrl?.let { url ->
+                        attachments = attachments + url
+                        noteViewModel.clearUploadedImage()
+                    }
+                }
+
                 NoteEditorScreen(
-                    existingNote = noteToEdit,
+                    existingNote = noteToEdit?.copy(attachments = attachments),
                     onBack = { mainNavController.popBackStack() },
                     onSave = { note ->
                         if (note.id.isEmpty()) {
@@ -122,6 +134,7 @@ fun MainScreen(
                         } else {
                             noteViewModel.updateNote(note)
                         }
+                        mainNavController.popBackStack()
                     },
                     onUploadImage = { uri ->
                         noteViewModel.uploadAttachment(uri)

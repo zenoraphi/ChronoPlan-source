@@ -4,6 +4,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chronoplan.R
+import com.chronoplan.data.model.AgendaDto
+import com.chronoplan.data.model.NoteDto
 import com.chronoplan.domain.usecase.ChronoUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,9 +39,9 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState = _uiState.asStateFlow()
 
-    // ✅ State untuk data lengkap
-    private var allAgendas: List<com.chronoplan.data.model.AgendaDto> = emptyList()
-    private var allNotes: List<com.chronoplan.data.model.NoteDto> = emptyList()
+    // State untuk data lengkap
+    private var allAgendas: List<AgendaDto> = emptyList()
+    private var allNotes: List<NoteDto> = emptyList()
 
     init {
         loadData()
@@ -64,20 +66,16 @@ class HomeViewModel(
                 allAgendas = agendas
                 allNotes = notes
 
-                // ✅ FILTER AGENDA HARI INI SAJA
                 val todayAgendas = agendas.filter { it.date == today }
 
-                // ✅ HITUNG STATUS HARI INI
                 val done = todayAgendas.count { it.status == "done" }
                 val pending = todayAgendas.count { it.status == "pending" }
                 val missed = todayAgendas.count { it.status == "missed" }
 
-                // ✅ TUGAS TERLAMBAT (agenda dengan tanggal < hari ini DAN belum selesai)
                 val lateCount = agendas.count { agenda ->
                     agenda.status != "done" && agenda.date < today
                 }
 
-                // ✅ JADWAL LIST (max 4)
                 val jadwalList = todayAgendas.take(4).map { agenda ->
                     mapOf(
                         "icon" to R.drawable.ic_work,
@@ -85,7 +83,6 @@ class HomeViewModel(
                     )
                 }
 
-                // ✅ PIE CHART HANYA DARI AGENDA HARI INI
                 val total = todayAgendas.size.toFloat()
                 val pieData = if (total > 0) {
                     listOf(
@@ -97,7 +94,7 @@ class HomeViewModel(
                     listOf(PieSlice(1f, Color(0xFFE0E0E0), "Belum ada"))
                 }
 
-                // ✅ HISTORY NOTES (max 3 terbaru)
+                // ✅ FIXED: Ambil notes terbaru dengan title saja
                 val notesList = notes
                     .sortedByDescending { it.updatedAt }
                     .take(3)
@@ -115,21 +112,19 @@ class HomeViewModel(
         }
     }
 
-    // ✅ GET LATE TASKS (dengan tanggal < hari ini)
-    fun getLateTasks(): List<com.chronoplan.data.model.AgendaDto> {
+    fun getLateTasks(): List<AgendaDto> {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         return allAgendas.filter { it.status != "done" && it.date < today }
             .sortedBy { it.date }
     }
 
-    // ✅ GET FAVORITE NOTES
-    fun getFavoriteNotes(): List<com.chronoplan.data.model.NoteDto> {
+    // ✅ FIXED: Return NoteDto dengan isFavorite = true
+    fun getFavoriteNotes(): List<NoteDto> {
         return allNotes.filter { it.isFavorite }
             .sortedByDescending { it.updatedAt }
     }
 
-    // ✅ GET ALL NOTES
-    fun getAllNotes(): List<com.chronoplan.data.model.NoteDto> {
+    fun getAllNotes(): List<NoteDto> {
         return allNotes.sortedByDescending { it.updatedAt }
     }
 
@@ -145,10 +140,14 @@ class HomeViewModel(
         }
     }
 
+    // ✅ FIXED: Toggle favorite dengan update ke Firestore
     fun toggleFavorite(noteId: String) {
         viewModelScope.launch {
             val note = allNotes.find { it.id == noteId } ?: return@launch
-            val updated = note.copy(isFavorite = !note.isFavorite)
+            val updated = note.copy(
+                isFavorite = !note.isFavorite,
+                updatedAt = System.currentTimeMillis()
+            )
             useCase.updateNote(updated)
         }
     }

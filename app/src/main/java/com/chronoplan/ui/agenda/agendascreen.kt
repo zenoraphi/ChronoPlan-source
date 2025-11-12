@@ -1,5 +1,6 @@
 package com.chronoplan.ui.agenda
 
+import android.app.DatePickerDialog
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,15 +15,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -36,10 +31,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chronoplan.R
 import com.chronoplan.di.AppViewModelFactory
 import com.chronoplan.data.model.AgendaDto
-import java.time.DayOfWeek
-import java.time.LocalDate
-import java.time.format.TextStyle
-import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,12 +43,40 @@ fun AgendaScreen(
     val context = LocalContext.current
     val uiState by viewModel.state.collectAsState()
 
+    // ✅ Reset to today when screen appears
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.resetToToday()
+        }
+    }
+
+    // ✅ Date Picker Dialog
+    if (uiState.showDatePicker) {
+        val calendar = Calendar.getInstance()
+        calendar.timeInMillis = uiState.selectedDate
+
+        DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                val newCalendar = Calendar.getInstance()
+                newCalendar.set(year, month, day)
+                viewModel.changeDate(newCalendar.timeInMillis)
+                viewModel.hideDatePicker()
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        ).apply {
+            setOnDismissListener { viewModel.hideDatePicker() }
+            show()
+        }
+    }
+
+    // Dialogs
     if (uiState.showAddDialog) {
         AddAgendaDialog(
             onDismiss = { viewModel.hideAddDialog() },
-            onSave = { agenda ->
-                viewModel.addAgenda(agenda, context)
-            }
+            onSave = { agenda -> viewModel.addAgenda(agenda, context) }
         )
     }
 
@@ -64,6 +85,21 @@ fun AgendaScreen(
             agendas = uiState.agendas,
             onDismiss = { viewModel.hideHistoryDialog() },
             onDelete = { agendaId -> viewModel.deleteAgenda(agendaId) }
+        )
+    }
+
+    // ✅ NEW: Agenda Detail Dialog
+    if (uiState.showDetailDialog && uiState.selectedAgenda != null) {
+        AgendaDetailDialog(
+            agenda = uiState.selectedAgenda!!,
+            onDismiss = { viewModel.hideAgendaDetail() },
+            onDelete = {
+                viewModel.deleteAgenda(uiState.selectedAgenda!!.id)
+                viewModel.hideAgendaDetail()
+            },
+            onToggleDone = {
+                viewModel.toggleTaskDone(uiState.selectedAgenda!!.id)
+            }
         )
     }
 
@@ -115,29 +151,21 @@ fun AgendaScreen(
             shadowElevation = 4.dp
         ) {
             Column(
-                modifier = Modifier
-                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                modifier = Modifier.padding(top = 16.dp, start = 16.dp, end = 16.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = uiState.selectedDateFormatted,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clickable { /* TODO: kalender */ }
-                    )
-                    DayIndicatorStrip(
-                        DayOfWeek.of(
-                            if (uiState.selectedDayOfWeek in 1..7) uiState.selectedDayOfWeek
-                            else LocalDate.now().dayOfWeek.value
-                        )
-                    )
-                }
+                // ✅ FIXED: Tanggal di tengah dan clickable
+                Text(
+                    text = uiState.selectedDateFormatted,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { viewModel.showDatePicker() }
+                        .padding(vertical = 8.dp)
+                )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth(),
@@ -147,7 +175,7 @@ fun AgendaScreen(
                     if (uiState.jadwalHariIni.isEmpty()) {
                         item {
                             Text(
-                                text = "Belum ada agenda untuk hari ini.\nKlik 'Jadwalkan Tugas' untuk menambah.",
+                                text = "Belum ada agenda untuk tanggal ini.\nKlik 'Jadwalkan Tugas' untuk menambah.",
                                 color = Color.Gray,
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -162,7 +190,8 @@ fun AgendaScreen(
                         ) { agenda ->
                             AgendaListItem(
                                 agenda = agenda,
-                                onToggleDone = { viewModel.toggleTaskDone(agenda.id) }
+                                onToggleDone = { viewModel.toggleTaskDone(agenda.id) },
+                                onClick = { viewModel.showAgendaDetail(agenda) } // ✅ NEW
                             )
                         }
                     }
@@ -214,34 +243,15 @@ fun AgendaScreen(
 }
 
 @Composable
-private fun DayIndicatorStrip(selectedDay: DayOfWeek) {
-    val daysOfWeek = DayOfWeek.values()
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        daysOfWeek.forEach { day ->
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = day.getDisplayName(TextStyle.SHORT, Locale("id", "ID")),
-                    fontSize = 12.sp,
-                    color = if (day == selectedDay) MaterialTheme.colorScheme.primary else Color.Gray,
-                    fontWeight = if (day == selectedDay) FontWeight.Bold else FontWeight.Normal
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                if (day == selectedDay) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape)
-                    )
-                } else Spacer(modifier = Modifier.height(6.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun AgendaListItem(agenda: AgendaDto, onToggleDone: () -> Unit) {
+private fun AgendaListItem(
+    agenda: AgendaDto,
+    onToggleDone: () -> Unit,
+    onClick: () -> Unit // ✅ NEW
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick), // ✅ Make clickable
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -282,6 +292,117 @@ private fun AgendaListItem(agenda: AgendaDto, onToggleDone: () -> Unit) {
                     .clickable(onClick = onToggleDone)
             )
         }
+    }
+}
+
+@Composable
+fun AgendaDetailDialog(
+    agenda: AgendaDto,
+    onDismiss: () -> Unit,
+    onDelete: () -> Unit,
+    onToggleDone: () -> Unit
+) {
+    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val dateFormat = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = agenda.title,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    Row {
+                        IconButton(onClick = onToggleDone) {
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = "Toggle Done",
+                                tint = if (agenda.status == "done") Color(0xFF4CAF50)
+                                else Color.LightGray
+                            )
+                        }
+                        IconButton(onClick = onDelete) {
+                            Icon(
+                                imageVector = Icons.Filled.Delete,
+                                contentDescription = "Hapus",
+                                tint = Color(0xFFC62828)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = agenda.description,
+                    fontSize = 14.sp,
+                    color = Color(0xFF616161)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Divider()
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                InfoRow("Tanggal", dateFormat.format(Date(agenda.startAt)))
+                InfoRow("Waktu Mulai", timeFormat.format(Date(agenda.startAt)))
+                InfoRow("Waktu Selesai", timeFormat.format(Date(agenda.endAt)))
+                InfoRow("Status", when (agenda.status) {
+                    "done" -> "Selesai"
+                    "pending" -> "Menunggu"
+                    "missed" -> "Terlewat"
+                    else -> "Unknown"
+                })
+
+                if (agenda.reminderMinutesBefore > 0) {
+                    InfoRow("Pengingat", "${agenda.reminderMinutesBefore} menit sebelumnya")
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Tutup")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            color = Color(0xFF757575),
+            fontWeight = FontWeight.Medium
+        )
+        Text(
+            text = value,
+            fontSize = 14.sp,
+            color = Color(0xFF000000)
+        )
     }
 }
 

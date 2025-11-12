@@ -24,14 +24,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.rememberAsyncImagePainter
 import com.chronoplan.data.model.NoteDto
+
+// ✅ Data class untuk menyimpan format range
+data class FormatRange(
+    val start: Int,
+    val end: Int,
+    val isBold: Boolean = false,
+    val isItalic: Boolean = false,
+    val isUnderline: Boolean = false
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,24 +56,83 @@ fun NoteEditorScreen(
     onUploadImage: (Uri) -> Unit = {}
 ) {
     var title by remember { mutableStateOf(existingNote?.title ?: "") }
-    var content by remember { mutableStateOf(existingNote?.content ?: "") }
+    var contentText by remember { mutableStateOf(existingNote?.content ?: "") }
+    var textFieldValue by remember {
+        mutableStateOf(TextFieldValue(text = existingNote?.content ?: ""))
+    }
     var labels by remember { mutableStateOf(existingNote?.labels ?: emptyList()) }
     var attachments by remember { mutableStateOf(existingNote?.attachments ?: emptyList()) }
     var currentLabel by remember { mutableStateOf("") }
     var showLabelInput by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showFullImage by remember { mutableStateOf<String?>(null) }
-    var textFormat by remember { mutableStateOf(TextFormat()) }
 
+    // ✅ Track active formatting
+    var isBoldActive by remember { mutableStateOf(false) }
+    var isItalicActive by remember { mutableStateOf(false) }
+    var isUnderlineActive by remember { mutableStateOf(false) }
+
+    // ✅ Store formatting ranges
+    var formatRanges by remember { mutableStateOf<List<FormatRange>>(emptyList()) }
+    var numberedListCounter by remember { mutableStateOf(1) }
+
+    // ✅ Image picker dengan handling proper
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
+            // Upload dulu, tunggu URL-nya
             onUploadImage(it)
-            attachments = attachments + uri.toString()
+            // Simpan URI sementara, nanti diganti URL dari Firebase
+            attachments = attachments + it.toString()
         }
     }
 
+    // ✅ Function untuk apply formatting pada selected text
+    fun applyFormatting(type: String) {
+        val selection = textFieldValue.selection
+        if (selection.start == selection.end) {
+            // No selection, set flag untuk text berikutnya
+            when (type) {
+                "bold" -> isBoldActive = !isBoldActive
+                "italic" -> isItalicActive = !isItalicActive
+                "underline" -> isUnderlineActive = !isUnderlineActive
+            }
+        } else {
+            // Ada selection, apply formatting
+            val newRange = FormatRange(
+                start = selection.start,
+                end = selection.end,
+                isBold = when(type) { "bold" -> true else -> false },
+                isItalic = when(type) { "italic" -> true else -> false },
+                isUnderline = when(type) { "underline" -> true else -> false }
+            )
+            formatRanges = formatRanges + newRange
+        }
+    }
+
+    // ✅ Build annotated string dengan formatting
+    val annotatedContent = remember(textFieldValue.text, formatRanges) {
+        buildAnnotatedString {
+            append(textFieldValue.text)
+
+            formatRanges.forEach { range ->
+                if (range.start < textFieldValue.text.length && range.end <= textFieldValue.text.length) {
+                    addStyle(
+                        style = SpanStyle(
+                            fontWeight = if (range.isBold) FontWeight.Bold else null,
+                            fontStyle = if (range.isItalic) FontStyle.Italic else null,
+                            textDecoration = if (range.isUnderline) TextDecoration.Underline else null
+                        ),
+                        start = range.start,
+                        end = range.end
+                    )
+                }
+            }
+        }
+    }
+
+    // ✅ Full Image Dialog
     if (showFullImage != null) {
         Dialog(onDismissRequest = { showFullImage = null }) {
             Box(
@@ -111,13 +184,15 @@ fun NoteEditorScreen(
                                     errorMessage = "Judul harus diisi"
                                     return@IconButton
                                 }
-                                content.isBlank() -> {
+                                textFieldValue.text.isBlank() -> {
                                     errorMessage = "Isi catatan harus diisi"
                                     return@IconButton
                                 }
                             }
 
+                            val content = textFieldValue.text
                             val contentPreview = content.take(100) + if (content.length > 100) "..." else ""
+
                             val note = NoteDto(
                                 id = existingNote?.id ?: "",
                                 title = title,
@@ -178,48 +253,123 @@ fun NoteEditorScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Toolbar
+            // ✅ Toolbar dengan state aktif
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
                 color = Color(0xFFF5F5F5)
             ) {
                 Row(
-                    modifier = Modifier.padding(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        // Bold
                         IconToggleButton(
-                            checked = textFormat.isBold,
-                            onCheckedChange = { textFormat = textFormat.copy(isBold = it) }
+                            checked = isBoldActive,
+                            onCheckedChange = {
+                                applyFormatting("bold")
+                            }
                         ) {
                             Icon(
                                 Icons.Filled.FormatBold,
                                 contentDescription = "Bold",
-                                tint = if (textFormat.isBold) Color(0xFF1976D2) else Color(0xFF757575)
+                                tint = if (isBoldActive) Color(0xFF1976D2) else Color(0xFF757575)
                             )
                         }
+
+                        // Italic
                         IconToggleButton(
-                            checked = textFormat.isItalic,
-                            onCheckedChange = { textFormat = textFormat.copy(isItalic = it) }
+                            checked = isItalicActive,
+                            onCheckedChange = {
+                                applyFormatting("italic")
+                            }
                         ) {
                             Icon(
                                 Icons.Filled.FormatItalic,
                                 contentDescription = "Italic",
-                                tint = if (textFormat.isItalic) Color(0xFF1976D2) else Color(0xFF757575)
+                                tint = if (isItalicActive) Color(0xFF1976D2) else Color(0xFF757575)
                             )
                         }
+
+                        // Underline
                         IconToggleButton(
-                            checked = textFormat.isUnderline,
-                            onCheckedChange = { textFormat = textFormat.copy(isUnderline = it) }
+                            checked = isUnderlineActive,
+                            onCheckedChange = {
+                                applyFormatting("underline")
+                            }
                         ) {
                             Icon(
                                 Icons.Filled.FormatUnderlined,
                                 contentDescription = "Underline",
-                                tint = if (textFormat.isUnderline) Color(0xFF1976D2) else Color(0xFF757575)
+                                tint = if (isUnderlineActive) Color(0xFF1976D2) else Color(0xFF757575)
+                            )
+                        }
+
+                        // Bullet List
+                        IconButton(
+                            onClick = {
+                                val selection = textFieldValue.selection
+                                val newText = textFieldValue.text.substring(0, selection.start) +
+                                        "• " +
+                                        textFieldValue.text.substring(selection.start)
+                                textFieldValue = TextFieldValue(
+                                    text = newText,
+                                    selection = TextRange(selection.start + 2)
+                                )
+                            }
+                        ) {
+                            Icon(
+                                Icons.Filled.FormatListBulleted,
+                                contentDescription = "Bullet List",
+                                tint = Color(0xFF757575)
+                            )
+                        }
+
+                        // Numbered List
+                        IconButton(
+                            onClick = {
+                                val selection = textFieldValue.selection
+                                val newText = textFieldValue.text.substring(0, selection.start) +
+                                        "$numberedListCounter. " +
+                                        textFieldValue.text.substring(selection.start)
+                                textFieldValue = TextFieldValue(
+                                    text = newText,
+                                    selection = TextRange(selection.start + "$numberedListCounter. ".length)
+                                )
+                                numberedListCounter++
+                            }
+                        ) {
+                            Icon(
+                                Icons.Filled.FormatListNumbered,
+                                contentDescription = "Numbered List",
+                                tint = Color(0xFF757575)
+                            )
+                        }
+
+                        // Indent
+                        IconButton(
+                            onClick = {
+                                val selection = textFieldValue.selection
+                                val newText = textFieldValue.text.substring(0, selection.start) +
+                                        "    " +
+                                        textFieldValue.text.substring(selection.start)
+                                textFieldValue = TextFieldValue(
+                                    text = newText,
+                                    selection = TextRange(selection.start + 4)
+                                )
+                            }
+                        ) {
+                            Icon(
+                                Icons.Filled.FormatIndentIncrease,
+                                contentDescription = "Indent",
+                                tint = Color(0xFF757575)
                             )
                         }
                     }
+
                     IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
                         Icon(Icons.Filled.Image, contentDescription = "Tambah Gambar", tint = Color(0xFF757575))
                     }
@@ -228,31 +378,64 @@ fun NoteEditorScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Content
+            // ✅ Content Editor dengan AnnotatedString
             BasicTextField(
-                value = content,
-                onValueChange = { content = it },
+                value = textFieldValue,
+                onValueChange = { newValue ->
+                    textFieldValue = newValue
+
+                    // Apply active formatting ke karakter baru
+                    if (newValue.text.length > textFieldValue.text.length &&
+                        (isBoldActive || isItalicActive || isUnderlineActive)) {
+                        val newCharStart = textFieldValue.text.length
+                        val newCharEnd = newValue.text.length
+
+                        if (newCharEnd > newCharStart) {
+                            formatRanges = formatRanges + FormatRange(
+                                start = newCharStart,
+                                end = newCharEnd,
+                                isBold = isBoldActive,
+                                isItalic = isItalicActive,
+                                isUnderline = isUnderlineActive
+                            )
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 400.dp),
+                    .heightIn(min = 400.dp)
+                    .background(Color.White),
                 textStyle = LocalTextStyle.current.copy(
                     color = Color(0xFF000000),
                     fontSize = 16.sp,
-                    fontWeight = if (textFormat.isBold) FontWeight.Bold else FontWeight.Normal,
-                    fontStyle = if (textFormat.isItalic) FontStyle.Italic else FontStyle.Normal,
-                    textDecoration = if (textFormat.isUnderline) TextDecoration.Underline else TextDecoration.None,
                     lineHeight = 24.sp
                 ),
                 cursorBrush = SolidColor(Color(0xFF1976D2)),
                 decorationBox = { innerTextField ->
-                    if (content.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        if (textFieldValue.text.isEmpty()) {
+                            Text(
+                                "Tulis catatan di sini...\n\n" +
+                                        "Tips:\n" +
+                                        "• Pilih teks → klik Bold/Italic/Underline\n" +
+                                        "• Atau aktifkan tombol → ketik teks baru\n" +
+                                        "• Bullet/Number untuk list\n" +
+                                        "• Indent untuk paragraf menjorok",
+                                color = Color(0xFF9E9E9E),
+                                fontSize = 16.sp,
+                                lineHeight = 24.sp
+                            )
+                        }
+
+                        // Render text dengan formatting
                         Text(
-                            "Tulis catatan di sini...",
-                            color = Color(0xFF9E9E9E),
-                            fontSize = 16.sp
+                            text = annotatedContent,
+                            modifier = Modifier.fillMaxWidth()
                         )
+
+                        // Cursor overlay
+                        innerTextField()
                     }
-                    innerTextField()
                 }
             )
 
@@ -302,7 +485,7 @@ fun NoteEditorScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Labels
+            // Labels (keep existing code)
             Text(
                 text = "Label",
                 fontSize = 14.sp,

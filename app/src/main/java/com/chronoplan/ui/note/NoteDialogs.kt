@@ -24,8 +24,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.*
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,7 +50,14 @@ fun AddEditNoteDialog(
     onUploadImage: (Uri) -> Unit = {}
 ) {
     var title by remember { mutableStateOf(existingNote?.title ?: "") }
-    var content by remember { mutableStateOf(existingNote?.content ?: "") }
+    var textFieldValue by remember {
+        mutableStateOf(
+            TextFieldValue(
+                text = existingNote?.content ?: "",
+                selection = TextRange(existingNote?.content?.length ?: 0)
+            )
+        )
+    }
     var labels by remember { mutableStateOf(existingNote?.labels ?: emptyList()) }
     var attachments by remember { mutableStateOf(existingNote?.attachments ?: emptyList()) }
     var currentLabel by remember { mutableStateOf("") }
@@ -56,6 +65,11 @@ fun AddEditNoteDialog(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showFullImage by remember { mutableStateOf<String?>(null) }
     var textFormat by remember { mutableStateOf(TextFormat()) }
+
+    // Ambil warna di luar VisualTransformation
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val outlineColor = MaterialTheme.colorScheme.outline
+    val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -132,7 +146,7 @@ fun AddEditNoteDialog(
                         OutlinedTextField(
                             value = title,
                             onValueChange = { title = it },
-                            label = { Text("Judul", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                            label = { Text("Judul", color = onSurfaceVariantColor) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             colors = TextFieldDefaults.outlinedTextFieldColors(
@@ -162,8 +176,8 @@ fun AddEditNoteDialog(
                                         Icon(
                                             Icons.Filled.FormatBold,
                                             contentDescription = "Bold",
-                                            tint = if (textFormat.isBold) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant
+                                            tint = if (textFormat.isBold) primaryColor
+                                            else onSurfaceVariantColor
                                         )
                                     }
                                     IconToggleButton(
@@ -173,8 +187,8 @@ fun AddEditNoteDialog(
                                         Icon(
                                             Icons.Filled.FormatItalic,
                                             contentDescription = "Italic",
-                                            tint = if (textFormat.isItalic) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant
+                                            tint = if (textFormat.isItalic) primaryColor
+                                            else onSurfaceVariantColor
                                         )
                                     }
                                     IconToggleButton(
@@ -184,8 +198,8 @@ fun AddEditNoteDialog(
                                         Icon(
                                             Icons.Filled.FormatUnderlined,
                                             contentDescription = "Underline",
-                                            tint = if (textFormat.isUnderline) MaterialTheme.colorScheme.primary
-                                            else MaterialTheme.colorScheme.onSurfaceVariant
+                                            tint = if (textFormat.isUnderline) primaryColor
+                                            else onSurfaceVariantColor
                                         )
                                     }
                                     IconButton(onClick = { /* List */ }) {
@@ -201,37 +215,71 @@ fun AddEditNoteDialog(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Text Field
+                        // Text Field dengan format per seleksi
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(300.dp)
-                                .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp)),
+                                .border(1.dp, outlineColor, RoundedCornerShape(4.dp)),
                             color = Color.White
                         ) {
                             BasicTextField(
-                                value = content,
-                                onValueChange = { content = it },
+                                value = textFieldValue,
+                                onValueChange = { textFieldValue = it },
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(12.dp),
-                                textStyle = LocalTextStyle.current.copy(
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontSize = 14.sp,
-                                    fontWeight = if (textFormat.isBold) FontWeight.Bold else FontWeight.Normal,
-                                    fontStyle = if (textFormat.isItalic) FontStyle.Italic else FontStyle.Normal,
-                                    textDecoration = if (textFormat.isUnderline) TextDecoration.Underline else TextDecoration.None
-                                ),
-                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                cursorBrush = SolidColor(primaryColor),
+                                visualTransformation = VisualTransformation { text ->
+                                    val start = textFieldValue.selection.start.coerceAtMost(text.text.length)
+                                    val end = textFieldValue.selection.end.coerceAtMost(text.text.length)
+
+                                    val annotatedString = buildAnnotatedString {
+                                        // Sebelum seleksi
+                                        withStyle(
+                                            SpanStyle(
+                                                fontWeight = FontWeight.Normal,
+                                                fontStyle = FontStyle.Normal,
+                                                textDecoration = TextDecoration.None
+                                            )
+                                        ) {
+                                            append(text.text.substring(0, start))
+                                        }
+
+                                        // Seleksi (dengan format aktif + background)
+                                        withStyle(
+                                            SpanStyle(
+                                                fontWeight = if (textFormat.isBold) FontWeight.Bold else FontWeight.Normal,
+                                                fontStyle = if (textFormat.isItalic) FontStyle.Italic else FontStyle.Normal,
+                                                textDecoration = if (textFormat.isUnderline) TextDecoration.Underline else TextDecoration.None,
+                                                background = primaryColor.copy(alpha = 0.2f)
+                                            )
+                                        ) {
+                                            append(text.text.substring(start, end))
+                                        }
+
+                                        // Setelah seleksi (ikut format saat mengetik)
+                                        withStyle(
+                                            SpanStyle(
+                                                fontWeight = if (textFormat.isBold) FontWeight.Bold else FontWeight.Normal,
+                                                fontStyle = if (textFormat.isItalic) FontStyle.Italic else FontStyle.Normal,
+                                                textDecoration = if (textFormat.isUnderline) TextDecoration.Underline else TextDecoration.None
+                                            )
+                                        ) {
+                                            append(text.text.substring(end))
+                                        }
+                                    }
+                                    TransformedText(annotatedString, OffsetMapping.Identity)
+                                },
                                 decorationBox = { innerTextField ->
                                     Box(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.TopStart
                                     ) {
-                                        if (content.isEmpty()) {
+                                        if (textFieldValue.text.isEmpty()) {
                                             Text(
                                                 "Tulis catatan di sini...",
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                                color = onSurfaceVariantColor.copy(alpha = 0.5f),
                                                 fontSize = 14.sp
                                             )
                                         }
@@ -359,7 +407,7 @@ fun AddEditNoteDialog(
                             Text(
                                 text = "Maksimal 15 karakter, ${labels.size}/5 label",
                                 fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = onSurfaceVariantColor
                             )
                         }
 
@@ -399,18 +447,18 @@ fun AddEditNoteDialog(
                                             errorMessage = "Judul harus diisi"
                                             return@Button
                                         }
-                                        content.isBlank() -> {
+                                        textFieldValue.text.isBlank() -> {
                                             errorMessage = "Isi catatan harus diisi"
                                             return@Button
                                         }
                                     }
 
-                                    val contentPreview = content.take(100) + if (content.length > 100) "..." else ""
+                                    val contentPreview = textFieldValue.text.take(100) + if (textFieldValue.text.length > 100) "..." else ""
 
                                     val note = NoteDto(
                                         id = existingNote?.id ?: "",
                                         title = title,
-                                        content = content,
+                                        content = textFieldValue.text,
                                         contentPreview = contentPreview,
                                         labels = labels,
                                         attachments = attachments,
@@ -438,11 +486,12 @@ fun AddEditNoteDialog(
 fun NoteDetailDialog(
     note: NoteDto,
     onDismiss: () -> Unit,
-    onEdit: () -> Unit,
+    onEdit:  () -> Unit,
     onDelete: () -> Unit,
     onToggleFavorite: () -> Unit
 ) {
     var showFullImage by remember { mutableStateOf<String?>(null) }
+    var isFavorite by remember(note.isFavorite) { mutableStateOf(note.isFavorite) }
 
     if (showFullImage != null) {
         Dialog(onDismissRequest = { showFullImage = null }) {
@@ -499,18 +548,26 @@ fun NoteDetailDialog(
                     )
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IconButton(onClick = onToggleFavorite) {
+                        IconButton(onClick = {
+                            isFavorite = !isFavorite
+                            onToggleFavorite()
+                        }) {
                             Icon(
-                                imageVector = if (note.isFavorite) Icons.Filled.Star else Icons.Filled.StarBorder,
+                                imageVector = if (isFavorite) Icons.Filled.Star else Icons.Filled.StarBorder,
                                 contentDescription = "Favorit",
-                                tint = if (note.isFavorite) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = if (isFavorite) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+
                         IconButton(onClick = onEdit) {
                             Icon(Icons.Filled.Edit, contentDescription = "Edit")
                         }
                         IconButton(onClick = onDelete) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Hapus", tint = MaterialTheme.colorScheme.error)
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = "Hapus",
+                                tint = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
                 }

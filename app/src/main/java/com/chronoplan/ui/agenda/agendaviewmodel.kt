@@ -18,11 +18,13 @@ data class AgendaUiState(
     val jadwalHariIni: List<AgendaDto> = emptyList(),
     val selectedDate: Long = System.currentTimeMillis(),
     val selectedDateFormatted: String = "",
-    val selectedDayOfWeek: Int = Calendar.getInstance().get(Calendar.DAY_OF_WEEK),
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
     val showAddDialog: Boolean = false,
-    val showHistoryDialog: Boolean = false
+    val showHistoryDialog: Boolean = false,
+    val showDatePicker: Boolean = false, // ✅ Tambah state untuk date picker
+    val selectedAgenda: AgendaDto? = null, // ✅ Tambah untuk detail view
+    val showDetailDialog: Boolean = false
 )
 
 class AgendaViewModel(private val useCase: ChronoUseCase) : ViewModel() {
@@ -37,24 +39,19 @@ class AgendaViewModel(private val useCase: ChronoUseCase) : ViewModel() {
     private fun observeAgendas() {
         viewModelScope.launch {
             useCase.observeAgendas().collect { list ->
-                // ✅ FIXED: Gunakan Calendar untuk konsistensi
                 val calendar = Calendar.getInstance()
                 calendar.timeInMillis = _state.value.selectedDate
 
-                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val selectedDateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                     .format(calendar.time)
 
-                val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
-
-                // Format tanggal Indonesia
                 val dateFormatIndo = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale("id", "ID"))
                 val formattedDate = dateFormatIndo.format(calendar.time)
 
                 _state.value = _state.value.copy(
                     agendas = list,
-                    jadwalHariIni = list.filter { it.date == today },
+                    jadwalHariIni = list.filter { it.date == selectedDateStr },
                     selectedDateFormatted = formattedDate,
-                    selectedDayOfWeek = dayOfWeek,
                     isLoading = false
                 )
             }
@@ -117,8 +114,39 @@ class AgendaViewModel(private val useCase: ChronoUseCase) : ViewModel() {
         _state.value = _state.value.copy(showHistoryDialog = false)
     }
 
+    // ✅ NEW: Show/hide date picker
+    fun showDatePicker() {
+        _state.value = _state.value.copy(showDatePicker = true)
+    }
+
+    fun hideDatePicker() {
+        _state.value = _state.value.copy(showDatePicker = false)
+    }
+
+    // ✅ NEW: Change selected date
     fun changeDate(newDate: Long) {
         _state.value = _state.value.copy(selectedDate = newDate)
         observeAgendas()
+    }
+
+    // ✅ NEW: Reset to today when navigating away
+    fun resetToToday() {
+        _state.value = _state.value.copy(selectedDate = System.currentTimeMillis())
+        observeAgendas()
+    }
+
+    // ✅ NEW: Show agenda detail
+    fun showAgendaDetail(agenda: AgendaDto) {
+        _state.value = _state.value.copy(
+            selectedAgenda = agenda,
+            showDetailDialog = true
+        )
+    }
+
+    fun hideAgendaDetail() {
+        _state.value = _state.value.copy(
+            selectedAgenda = null,
+            showDetailDialog = false
+        )
     }
 }

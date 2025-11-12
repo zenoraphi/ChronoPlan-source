@@ -60,18 +60,16 @@ class AkunViewModel(
 
     private fun loadStats() {
         viewModelScope.launch {
-            // Observasi agenda untuk hitung stats
             useCase.observeAgendas().collect { agendas ->
                 val completed = agendas.count { it.status == "done" }
                 val total = agendas.size
 
-                // Observasi notes
                 useCase.observeNotes().collect { notes ->
                     val stats = UserStatsDto(
                         totalAgendas = total,
                         completedAgendas = completed,
                         totalNotes = notes.size,
-                        currentStreak = 0 // TODO: implement streak tracking
+                        currentStreak = 0
                     )
 
                     val achievements = achievementUseCase.checkAchievements(stats)
@@ -85,11 +83,13 @@ class AkunViewModel(
         }
     }
 
+    // ✅ FIXED: Avatar upload dengan flow yang benar
     fun uploadAvatar(imageUri: Uri) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isUploadingAvatar = true)
 
             try {
+                // 1. Upload image ke Firebase Storage
                 val uploadResult = useCase.uploadAttachment(
                     localUri = imageUri,
                     remotePath = "avatars/${System.currentTimeMillis()}.jpg"
@@ -98,22 +98,23 @@ class AkunViewModel(
                 if (uploadResult.isSuccess) {
                     val avatarUrl = uploadResult.getOrNull()!!
 
+                    // 2. Get current profile
                     val currentProfile = useCase.getProfile().getOrNull()
                     if (currentProfile != null) {
+                        // 3. Update profile dengan URL baru
                         val updatedProfile = currentProfile.copy(avatarUrl = avatarUrl)
                         val updateResult = useCase.updateProfile(updatedProfile)
 
                         if (updateResult.isSuccess) {
-                            // ✅ FIXED: Update state langsung dan reload profile
+                            // 4. Update UI state immediately
                             _uiState.value = _uiState.value.copy(
                                 avatarUrl = avatarUrl,
                                 isUploadingAvatar = false
                             )
-                            // Force reload profile untuk memastikan sinkron
-                            kotlinx.coroutines.delay(500)
-                            loadProfile()
                         } else {
-                            _uiState.value = _uiState.value.copy(isUploadingAvatar = false)
+                            _uiState.value = _uiState.value.copy(
+                                isUploadingAvatar = false
+                            )
                         }
                     } else {
                         _uiState.value = _uiState.value.copy(isUploadingAvatar = false)

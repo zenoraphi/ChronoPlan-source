@@ -48,7 +48,7 @@ fun NoteScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showSearchBar by remember { mutableStateOf(false) }
 
-    // ✅ Navigation handler
+    // Navigation handler
     LaunchedEffect(uiState.navigateToEditor) {
         if (uiState.navigateToEditor) {
             onNavigateToEditor(uiState.noteToEdit)
@@ -126,7 +126,6 @@ fun NoteScreen(
                     )
                 }
 
-                // Search Icon
                 IconButton(
                     onClick = { showSearchBar = !showSearchBar },
                     modifier = Modifier
@@ -141,7 +140,6 @@ fun NoteScreen(
                 }
             }
 
-            // Search Bar
             AnimatedVisibility(
                 visible = showSearchBar,
                 enter = fadeIn() + slideInVertically(),
@@ -169,7 +167,6 @@ fun NoteScreen(
                 )
             }
 
-            // Grid catatan
             if (filteredNotes.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -208,7 +205,6 @@ fun NoteScreen(
             }
         }
 
-        // FAB tambah catatan
         FloatingActionButton(
             onClick = { viewModel.showAddDialog() },
             modifier = Modifier
@@ -240,7 +236,6 @@ fun NoteCardItem(note: NoteDto, onClick: () -> Unit) {
                     .fillMaxSize()
                     .padding(12.dp)
             ) {
-                // Title + Favorite Icon
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -269,7 +264,6 @@ fun NoteCardItem(note: NoteDto, onClick: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Content Preview
                 Text(
                     text = note.contentPreview,
                     fontWeight = FontWeight.Normal,
@@ -282,7 +276,6 @@ fun NoteCardItem(note: NoteDto, onClick: () -> Unit) {
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Labels (jika ada)
                 if (note.labels.isNotEmpty()) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -311,7 +304,6 @@ fun NoteCardItem(note: NoteDto, onClick: () -> Unit) {
                     }
                 }
 
-                // Date
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
