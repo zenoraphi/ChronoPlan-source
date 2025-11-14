@@ -278,7 +278,7 @@ class FirestoreChronoRepository(
                 "content" to note.content,
                 "labels" to note.labels,
                 "attachments" to note.attachments,
-                "isFavorite" to note.isFavorite,
+                "isFavorite" to note.isFavorite, // ✅ ADD THIS
                 "createdAt" to System.currentTimeMillis(),
                 "updatedAt" to System.currentTimeMillis()
             )
@@ -295,6 +295,7 @@ class FirestoreChronoRepository(
         }
     }
 
+    // Di fungsi updateNote
     override suspend fun updateNote(note: NoteDto): Result<Unit> {
         return try {
             val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Belum login"))
@@ -305,7 +306,7 @@ class FirestoreChronoRepository(
                 "content" to note.content,
                 "labels" to note.labels,
                 "attachments" to note.attachments,
-                "isFavorite" to note.isFavorite,
+                "isFavorite" to note.isFavorite, // ✅ ADD THIS
                 "createdAt" to note.createdAt,
                 "updatedAt" to System.currentTimeMillis()
             )

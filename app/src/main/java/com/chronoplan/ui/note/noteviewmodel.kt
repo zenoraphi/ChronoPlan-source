@@ -19,7 +19,7 @@ data class NoteUiState(
     val selectedNote: NoteDto? = null,
     val navigateToEditor: Boolean = false,
     val noteToEdit: NoteDto? = null,
-    val uploadedImageUrl: String? = null, // ✅ NEW: untuk track uploaded image
+    val uploadedImageUrl: String? = null,
     val isUploadingImage: Boolean = false
 )
 
@@ -69,11 +69,11 @@ class NoteViewModel(private val useCase: ChronoUseCase) : ViewModel() {
                 isFavorite = !note.isFavorite,
                 updatedAt = System.currentTimeMillis()
             )
+            // ✅ Update ke Firestore - listener akan auto-update state
             useCase.updateNote(updated)
         }
     }
 
-    // ✅ FIXED: Upload dengan tracking state
     fun uploadAttachment(uri: Uri) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isUploadingImage = true)

@@ -68,20 +68,30 @@ fun NoteScreen(
         }
     }
 
-    if (uiState.showDetailDialog && uiState.selectedNote != null) {
+    // ✅ CRITICAL FIX: Get fresh note from state every recomposition
+    val currentNote = remember(uiState.showDetailDialog, uiState.selectedNote, uiState.notes) {
+        if (uiState.showDetailDialog && uiState.selectedNote != null) {
+            uiState.notes.find { it.id == uiState.selectedNote!!.id } ?: uiState.selectedNote
+        } else {
+            null
+        }
+    }
+
+    if (uiState.showDetailDialog && currentNote != null) {
         NoteDetailDialog(
-            note = uiState.selectedNote!!,
+            note = currentNote, // ✅ Always fresh
             onDismiss = { viewModel.hideDetailDialog() },
             onEdit = {
                 viewModel.hideDetailDialog()
-                viewModel.navigateToEditor(uiState.selectedNote)
+                viewModel.navigateToEditor(currentNote)
             },
             onDelete = {
-                viewModel.deleteNote(uiState.selectedNote!!.id)
+                viewModel.deleteNote(currentNote.id)
                 viewModel.hideDetailDialog()
             },
             onToggleFavorite = {
-                viewModel.toggleFavorite(uiState.selectedNote!!.id)
+                viewModel.toggleFavorite(currentNote.id)
+                // Dialog akan auto-update karena currentNote di-recompute
             }
         )
     }

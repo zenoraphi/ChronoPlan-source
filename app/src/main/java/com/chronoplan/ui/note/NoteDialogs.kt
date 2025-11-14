@@ -486,12 +486,13 @@ fun AddEditNoteDialog(
 fun NoteDetailDialog(
     note: NoteDto,
     onDismiss: () -> Unit,
-    onEdit:  () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     onToggleFavorite: () -> Unit
 ) {
     var showFullImage by remember { mutableStateOf<String?>(null) }
-    var isFavorite by remember(note.isFavorite) { mutableStateOf(note.isFavorite) }
+    // ✅ FIXED: Track favorite state dari note prop
+    val isFavorite = note.isFavorite
 
     if (showFullImage != null) {
         Dialog(onDismissRequest = { showFullImage = null }) {
@@ -548,10 +549,8 @@ fun NoteDetailDialog(
                     )
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IconButton(onClick = {
-                            isFavorite = !isFavorite
-                            onToggleFavorite()
-                        }) {
+                        // ✅ FIXED: Langsung pakai state dari prop
+                        IconButton(onClick = onToggleFavorite) {
                             Icon(
                                 imageVector = if (isFavorite) Icons.Filled.Star else Icons.Filled.StarBorder,
                                 contentDescription = "Favorit",
